@@ -207,10 +207,19 @@ def MOD_array(datadir, prefix, CETB_data, DAV,
         for x in np.arange(rows_cols[2], rows_cols[3])]
     newdata = np.zeros([flag.shape[0],
                         flag.shape[1] * flag.shape[2]], dtype=flag.dtype)
+    print("newdata.shape %s" % str(newdata.shape))
+    print("moving flag array to newdata...")
+    print("number of days = %d" % flag.shape[0])
+
     for d in np.arange(flag.shape[0]):
+        if np.mod(d, 100) == 0:
+            print("Next d = %d" % d)
         newdata[d,] = flag[d, :, :].flatten()
     matrix = pd.DataFrame(data=newdata, columns=col_names)
     matrix=matrix.set_index(cal_date)
+
+    print("dataFrame is ready with flag data")
+    print("doing rolling sums...")
 
     # MOD algorithm - calculate sum on a rolling window
     # (window= no. of obs, 2 per day)
@@ -221,13 +230,14 @@ def MOD_array(datadir, prefix, CETB_data, DAV,
 
     # gets a dataframe with one row for each pixel,
     # one column for each year, MOD in DOY in each cell for that pixel and year
-    dates=np.empty(0)
     new_frame=pd.DataFrame()
+    num_pixels = len(matrix.columns)
 
     for year in Years:
-        dates=np.empty(0)
-        for column in matrix:
-            dates=np.append(dates,matrix[str(year)][column].first_valid_index())
+        print("Next year = %d..." % year)
+        dates=np.zeros((num_pixels), dtype='datetime64[h]')
+        for column_index, column in enumerate(matrix.columns):
+            dates[column_index] = matrix[str(year)][column].first_valid_index()
 
         dates_series=pd.Series(dates)
         dates_series=dates_series.dt.dayofyear
@@ -274,11 +284,12 @@ def MOD_array_year(datadir, prefix, CETB_data, DAV,
 
     # gets a dataframe with one row for each pixel,
     # one column for each year, MOD in DOY in each cell for that pixel and year
-    dates=np.empty(0)
     new_frame=pd.DataFrame()
+    num_pixels = len(matrix.columns)
 
-    for column in matrix:
-        dates=np.append(dates,matrix[str(year)][column].first_valid_index())
+    dates=np.zeros((num_pixels), dtype='datetime64[h]')
+    for column_index, column in enumerate(matrix.columns):
+        dates[column_index] = matrix[str(year)][column].first_valid_index()
 
     dates_series=pd.Series(dates)
     dates_series=dates_series.dt.dayofyear
