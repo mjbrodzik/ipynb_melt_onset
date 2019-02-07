@@ -9,20 +9,31 @@ import warnings
 #FIXME: this shouldn't be necessary
 warnings.filterwarnings("ignore",category =RuntimeWarning)
 
-def test_function():
-        return {'first':1, 'second':2}
 
 # load CETB data for a subset and sensor of interest
-def read_Tb(datadir, prefix, Years,y_start,y_end,x_start,x_end):
+def read_Tb(datadir, prefix, Years,
+            y_start=None, y_end=None, x_start=None, x_end=None):
+
+    # Read the whole cube if no subset is specified
+    get_full_cube = False
+    if not y_start and not y_end and not x_start and not x_end:
+        get_full_cube = True
+        print("No subset specified, fetching complete cube...")
+        
     for year in Years:
         # Create filename
-        filename=datadir+prefix+'.'+str(year)+'.TB.nc'
+        filename = datadir+prefix+'.'+str(year)+'.TB.nc'
+        print("Next filename=%s..." % filename)
 
         # load the raw data in
         rawdata = Dataset(filename, "r", format="NETCDF4")
 
         # Compile the CETB data, the TB variable is saved as (time, y, x) -
-        subset = rawdata.variables['TB'][0:,y_start:y_end,x_start:x_end]
+        if get_full_cube:
+            subset = rawdata.variables['TB'][:,:,:]
+        else:
+            subset = rawdata.variables['TB'][0:,y_start:y_end,x_start:x_end]
+            
         if year==Years[0]:
             CETB_data = subset
         else:
@@ -46,6 +57,8 @@ def read_Tb(datadir, prefix, Years,y_start,y_end,x_start,x_end):
         if year == Years[0]:
             x = rawdata.variables['x'][:]
             y = rawdata.variables['y'][:]
+            latitude = rawdata.variables['latitude'][:]
+            longitude = rawdata.variables['longitude'][:]
             gpd = rawdata.variables['crs'].long_name
 
         # Close the file
@@ -68,7 +81,9 @@ def read_Tb(datadir, prefix, Years,y_start,y_end,x_start,x_end):
             'cal_month': cal_month,
             'gpd': gpd,
             'x': x,
-            'y': y}
+            'y': y,
+            'latitude': latitude,
+            'longitude': longitude}
 
 # load ALL TB data for a cubefile
 def read_Tb_all(datadir, prefix, Years):
