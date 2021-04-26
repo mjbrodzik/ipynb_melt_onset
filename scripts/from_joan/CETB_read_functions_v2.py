@@ -31,7 +31,14 @@ def read_Tb(datadir, prefix, Years,y_start,y_end,x_start,x_end):
 		else:
 			cal_date = np.concatenate((cal_date, greg_date), axis=0)
 
-		# Handle missing data - Hard coded!!
+		# TB value of 60000 is (unscaled) missing data:
+                # This value is used when there are TBs but the the
+                # reconstruction algorithm didn't converge on an answer
+                # TB value of 0 is no data value:
+                # This value is used when there were no TB measurements
+                # available to grid to this cell location
+                #FIXME: these values should not be hardcoded, they should
+                #be read from the variable metadata
 		CETB_data[CETB_data==60000] = np.NaN
 		CETB_data[CETB_data==0] = np.NaN
 	
@@ -72,7 +79,14 @@ def read_Tb_all(datadir, prefix, Years):
 		else:
 			cal_date = np.concatenate((cal_date, greg_date), axis=0)
 
-		# Handle missing data - Hard coded!!
+		# TB value of 60000 is (unscaled) missing data:
+                # This value is used when there are TBs but the the
+                # reconstruction algorithm didn't converge on an answer
+                # TB value of 0 is no data value:
+                # This value is used when there were no TB measurements
+                # available to grid to this cell location
+                #FIXME: these values should not be hardcoded, they should
+                #be read from the variable metadata
 		CETB_data[CETB_data==60000] = np.NaN
 		CETB_data[CETB_data==0] = np.NaN
 	
@@ -104,9 +118,17 @@ def read_Tb_std_dev(datadir, prefix, Years,y_start,y_end,x_start,x_end):
 		else:
 			CETB_data = np.concatenate((CETB_data, subset), axis=0)
 		
-		# Handle missing data - Hard coded!!
-		CETB_data[CETB_data>60000] = np.NaN
-		#CETB_data[CETB_data==0] = np.NaN
+		# stddev value of 2^16 - 2 missing data:
+                # This value is used when there are TBs but the the
+                # reconstruction algorithm didn't converge on an answer
+                # stddev value of 2^16 - 1 is no data value:
+                # This value is used when there were no TB measurements
+                # available to grid to this cell location
+                # This approach works because 60000 < these values
+                #FIXME: these values should not be hardcoded, they should
+                #be read from the variable metadata
+		CETB_data[CETB_data>=60000] = np.NaN
+		CETB_data[CETB_data==0] = np.NaN
 
 	return CETB_data
 
@@ -126,7 +148,12 @@ def read_Tb_time(datadir, prefix, Years,y_start,y_end,x_start,x_end):
 		else:
 			CETB_data = np.concatenate((CETB_data, subset), axis=0)
 		
-		# Handle missing data - Hard coded!!
+		# TB_time value has no missing data values
+                # TB_time value of min(INT16) is no data value:
+                # This value is used when there were no TB measurements
+                # available to grid to this cell location
+                #FIXME: these values should not be hardcoded, they should
+                #be read from the variable metadata
 		#CETB_data[CETB_data>60000] = np.NaN
 		#CETB_data[CETB_data==0] = np.NaN
 
@@ -134,6 +161,10 @@ def read_Tb_time(datadir, prefix, Years,y_start,y_end,x_start,x_end):
 
 def coords(datadir, prefix, lat_start, lat_end, lon_start, lon_end):
 	# this function takes the user inputs of latitude and longitude and returns the row/col numbers that identify Tb grids in the cubefile	
+	# Comment from CETB_read_functions.working 021919backup.py, from JMR:
+        # NOTE: this is a function I wrote, but it does basically the
+        # same thing as "find_cube_offset" and "grid_locationsof..."
+        # which are listed below and were coded by Mary Jo 
 	year=2003    #could choose any year since the structure is the same, chose 2003 since this year is included for all sensors
 	filename=datadir+prefix+'.'+str(year)+'.TB.nc'	
 	data=Dataset(filename, "r", format="NETCDF4")
