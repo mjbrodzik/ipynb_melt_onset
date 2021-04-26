@@ -4,10 +4,16 @@ from cetbtools.ease2conv import Ease2Transform
 import warnings
 import glob
 
-# getting a runtimewarning when using operators on numpy arrays with lots of NaNs, functions still perform, but using this command to suppress the warning
+# getting a runtimewarning when using operators
+# on numpy arrays with lots of NaNs, functions still perform,
+# but using this command to suppress the warning
+#FIXME: this shouldn't be necessary
 warnings.filterwarnings("ignore",category =RuntimeWarning)
 
-# load CETB data for a subset and sensor of interest
+# Original version of load CETB data for a subset and sensor of interest
+# We should eventually delete this in favor of the new version (below)
+# that doesn't force entry of the subset to read and that
+# returns gridding metadata from the .nc file
 def read_Tb(datadir, prefix, Years,y_start,y_end,x_start,x_end):
 	for year in Years:
 		# Create filename
@@ -48,6 +54,89 @@ def read_Tb(datadir, prefix, Years,y_start,y_end,x_start,x_end):
    		cal_month[n]=cal_date[n].month
 
 	return CETB_data, cal_date, cal_year, cal_month
+
+# load CETB data for a sensor of interest
+# if no subset arguments are included, reads the whole cube
+# this is a more versatile version of read_Tb and should eventually
+# replace it
+# prefix can be a filename glob pattern
+def read_Tb_whole(datadir, prefix, Years,
+                  y_start=None, y_end=None, x_start=None, x_end=None):
+
+    # Read the whole cube if no subset is specified
+    get_full_cube = False
+    if not y_start and not y_end and not x_start and not x_end:
+        get_full_cube = True
+        print("No subset specified, fetching complete cube...")
+        
+    for year in Years:
+        # Create filename
+        filename = datadir+prefix+'.'+str(year)+'.TB.nc'
+	list=glob.glob(filename)
+        filename = list[-1]
+        
+        print("Next filename=%s..." % filename)
+
+        # load the raw data in
+        rawdata = Dataset(filename, "r", format="NETCDF4")
+
+        # Compile the CETB data, the TB variable is saved as (time, y, x) -
+        if get_full_cube:
+            subset = rawdata.variables['TB'][:,:,:]
+        else:
+            subset = rawdata.variables['TB'][0:,y_start:y_end,x_start:x_end]
+            
+        if year==Years[0]:
+            CETB_data = subset
+        else:
+            CETB_data = np.concatenate((CETB_data, subset), axis=0)
+
+        # Compile the date information
+        d=rawdata.variables['time']
+        date=d[:]
+        greg_date = num2date(date[:], units=d.units,calendar=d.calendar)
+        if year==Years[0]:
+            cal_date = greg_date
+        else:
+            cal_date = np.concatenate((cal_date, greg_date), axis=0)
+
+        # Handle missing data - Hard coded!!
+        CETB_data[CETB_data==60000] = np.NaN
+        CETB_data[CETB_data==0] = np.NaN
+
+        # First time through,
+        # Fetch the x, y coordinates of the cube (not just the subset)
+        if year == Years[0]:
+            x = rawdata.variables['x'][:]
+            y = rawdata.variables['y'][:]
+            latitude = rawdata.variables['latitude'][:]
+            longitude = rawdata.variables['longitude'][:]
+            gpd = rawdata.variables['crs'].long_name
+
+        # Close the file
+        rawdata.close()
+
+    # get date info for plotting
+    cal_year = np.empty([len(cal_date)], dtype=float)
+    for n in range(0,len(cal_date)):
+        cal_year[n]=cal_date[n].year
+
+    # set up an array with the month data,
+    # if want to examine Tb data for a particular month
+    cal_month = np.empty([len(cal_date)], dtype=float)
+    for n in range(0,len(cal_date)):
+        cal_month[n]=cal_date[n].month
+
+    return {'TB': CETB_data,
+            'cal_date': cal_date,
+            'cal_year': cal_year,
+            'cal_month': cal_month,
+            'gpd': gpd,
+            'x': x,
+            'y': y,
+            'latitude': latitude,
+            'longitude': longitude}
+
 
 # load ALL TB data for a cubefile
 def read_Tb_all(datadir, prefix, Years):
