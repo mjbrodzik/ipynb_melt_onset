@@ -1,0 +1,17 @@
+# Thanks to kylerames.com/2010/08/11/gitignor-ignore-emacs-files/
+# ignore emacs auto save files
+auto-save-list
+custom.el
+url/
+.org-id-locations
+\#*
+org-mode-config.el
+*~
+.#*
+\#*\#
+*.log
+.DS_Store
+org-clock-save.el
+emacs-config.el
+*.elc
+.ipynb_checkpoints
