@@ -224,37 +224,62 @@ def read_Tb_time(datadir, prefix, Years,y_start,y_end,x_start,x_end):
 	return CETB_data
 
 def coords(datadir, prefix, lat_start, lat_end, lon_start, lon_end):
-	# this function takes the user inputs of latitude and longitude and returns the row/col numbers that identify Tb grids in the cubefile	
-	# NOTE: this is a function I wrote, but it does basically the same thing as "find_cube_offset" and "grid_locationsof..." which are listed below and were coded by Mary Jo 
-	year=2019    #could choose any year since the structure is the same, chose 2003 since this year is included for all sensors
-	filename=datadir+prefix+'.'+str(year)+'.TB.nc'
-	list=glob.glob(filename)
-	data=Dataset(list[-1], "r", format="NETCDF4")
-	
-	lat=data.variables['latitude'] 
-	lat=lat[:]
-	lon=data.variables['longitude']
-	lon=lon[:]
-	lat_lon=np.dstack((lat,lon))
+    # this function takes the user inputs of latitude and longitude
+    # and returns the row/col numbers that identify Tb grids in the
+    # cubefile
+    # NOTE: change made April 2021: returned x_end and y_end are
+    # incremented by 1. This is different from prior versions,
+    # see note below. This may now be the correct action, we
+    # need to test it.    
+    # NOTE: this is a function I wrote, but it does basically the
+    # same thing as "find_cube_offset" and "grid_locationsof..."
+    # which are listed below and were coded by Mary Jo
+    # Just read any year since the structure is the same,
+    filename=datadir+prefix+'.*.TB.nc'
+    list=glob.glob(filename)
+    data=Dataset(list[-1], "r", format="NETCDF4")
 
-	# if latitude and longitude are the same, for reading one pixel
-	if ((lat_start==lat_end) & (lon_start==lon_end)):	
-		y_start=np.min(np.argmin(((lat_start-lat_lon[:,:,0])**2+(lon_start-lat_lon[:,:,1])**2), axis=0))
-		y_end=y_start+1
-		x_start=np.max(np.argmin(((lat_start-lat_lon[:,:,0])**2+(lon_start-lat_lon[:,:,1])**2), axis=1))
-		x_end=x_start+1
-		return y_start,y_end,x_start,x_end
-	else:
-		row_col_set=np.where((lat_lon[:,:,0]>lat_start)&(lat_lon[:,:,0]<lat_end)&(lat_lon[:,:,1]>lon_start)&(lat_lon[:,:,1]<lon_end))	
-		y_start=np.min(row_col_set[0])
-		y_end=np.max(row_col_set[0])
-		x_start=np.min(row_col_set[1])
-		x_end=np.max(row_col_set[1])
-		if x_start==x_end:
-			x_end=x_end+1
-		if y_start==y_end:		
-			y_end=y_end+1
-		return y_start,y_end,x_start,x_end
+    lat=data.variables['latitude']
+    lat=lat[:]
+    lon=data.variables['longitude']
+    lon=lon[:]
+    lat_lon=np.dstack((lat,lon))
+
+    # if latitude and longitude are the same, for reading one pixel
+    if ((lat_start==lat_end) & (lon_start==lon_end)):
+        y_start=np.min(np.argmin(
+            ((lat_start-lat_lon[:,:,0])**2+(lon_start-lat_lon[:,:,1])**2),
+                axis=0))
+        y_end=y_start+1
+        x_start=np.max(np.argmin(
+            ((lat_start-lat_lon[:,:,0])**2+(lon_start-lat_lon[:,:,1])**2),
+                axis=1))
+        x_end=x_start+1
+        return y_start,y_end,x_start,x_end
+    else:
+        row_col_set=np.where(
+            (lat_lon[:,:,0]>lat_start)&(
+                lat_lon[:,:,0]<lat_end)&(
+                     lat_lon[:,:,1]>lon_start)&(
+                        lat_lon[:,:,1]<lon_end))
+        y_start=np.min(row_col_set[0])
+        y_end=np.max(row_col_set[0])
+        x_start=np.min(row_col_set[1])
+        x_end=np.max(row_col_set[1])
+        # if x_start==x_end:
+        #     x_end=x_end+1
+        # if y_start==y_end:
+        #     y_end=y_end+1
+        x_end=x_end+1
+        y_end=y_end+1
+
+        # The returned x_end and y_end are 1 pixel further than the
+        # required area, because the subsequent subsetting is an
+        # open interval the ending row/col
+        # Probably this should be handled in the subsetters, but for
+        # now I'm going to test it by extending the bounds by 1
+        # row and column here...
+        return y_start,y_end,x_start,x_end
 
 def calc_DAV(CETB_data):
 	# function takes the CETB_data that was read in read_Tb() and returns the absolute value of the DAV	
