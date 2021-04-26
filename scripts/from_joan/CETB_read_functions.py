@@ -330,246 +330,43 @@ def find_cube_offset(subsetName, cubeDir=None, cubeType=None, verbose=False):
         return row_offset, col_offset  
 
 
-# GLaIL - pass latitudes and longitudes, returns the rows and columns on the EASE grid for cubefiles, uses the 'find_cube_offset' function 
-def grid_locations_of_GLaIL(lat, lon):
-    gpds = ["EASE2_N3.125km", "EASE2_N6.25km", "EASE2_N25km"]
-    types = ["36H-SIR", "18H-SIR", "18H-GRD"]
+# pass subsetName, latitudes and longitudes,
+# returns the rows and columns on the EASE grid for cubefiles,
+# uses the 'find_cube_offset' function
+def grid_locations_of_subset(subsetName, lat, lon):
+        gpds = ["EASE2_N3.125km", "EASE2_N6.25km", "EASE2_N25km"]
+        types = ["36H-SIR", "18H-SIR", "18H-GRD"]
     
-    print("Input lat, lon = %.6f, %.6f" % (lat, lon))
-    rows = np.zeros((3))
-    cols = np.zeros((3))
-    for i, (thisGpd, thisType) in enumerate(zip(gpds, types)):
-        grid = Ease2Transform(thisGpd)
-        row, col = grid.geographic_to_grid(lat, lon)
-        print("%15s         : row, col = %.6f, %.6f" % (thisGpd, row, col))
+        print("Input lat, lon = %.6f, %.6f" % (lat, lon))
+        rows = np.zeros((3))
+        cols = np.zeros((3))
+        for i, (thisGpd, thisType) in enumerate(zip(gpds, types)):
+                grid = Ease2Transform(thisGpd)
+                row, col = grid.geographic_to_grid(lat, lon)
+                print("%15s         : row, col = %.6f, %.6f" % (thisGpd, row, col))
         
-        # Get the cube offsets
-        offset_row, offset_col = find_GLaIL_cube_offset(
-            cubeType=thisType)
-        UIBrow = row - offset_row
-        UIBcol = col - offset_col
-        print("%15s(%s): row, col = %.6f, %.6f" % ("GlaIL", thisType, UIBrow, UIBcol))
-        rows[i] = UIBrow
-        cols[i] = UIBcol
+                # Get the cube offsets
+                offset_row, offset_col = find_cube_offset(
+                        subsetName,
+                        cubeType=thisType)
+                subRow = row - offset_row
+                subCol = col - offset_col
+                print("%15s(%s): row, col = %.6f, %.6f" % (
+                        subsetName, thisType, subRow, subCol))
+                rows[i] = subRow
+                cols[i] = subCol
 
-    rows = (rows + 0.5).astype('int32')
-    cols = (cols + 0.5).astype('int32')
+        rows = (rows + 0.5).astype('int32')
+        cols = (cols + 0.5).astype('int32')
 
-    print(gpds)
-    print("%d %d %d %d %d %d" % (
-        cols[0], rows[0],
-        cols[1], rows[1],
-        cols[2], rows[2]))
+        print(gpds)
+        print("%d %d %d %d %d %d" % (
+                cols[0], rows[0],
+                cols[1], rows[1],
+                cols[2], rows[2]))
     
-    
-    return (rows, cols)
+        return (rows, cols)
 
-# Western US - pass latitudes and longitudes, returns the rows and columns on the EASE grid for cubefiles, uses the 'find_cube_offset' function 
-def grid_locations_of_WesternUS(lat, lon):
-    gpds = ["EASE2_N3.125km", "EASE2_N6.25km", "EASE2_N25km"]
-    types = ["36H-SIR", "18H-SIR", "18H-GRD"]
-    
-    print("Input lat, lon = %.6f, %.6f" % (lat, lon))
-    rows = np.zeros((3))
-    cols = np.zeros((3))
-    for i, (thisGpd, thisType) in enumerate(zip(gpds, types)):
-        grid = Ease2Transform(thisGpd)
-        row, col = grid.geographic_to_grid(lat, lon)
-        print("%15s         : row, col = %.6f, %.6f" % (thisGpd, row, col))
-        
-        # Get the cube offsets
-        offset_row, offset_col = find_WesternUS_cube_offset(
-            cubeType=thisType)
-        UIBrow = row - offset_row
-        UIBcol = col - offset_col
-        print("%15s(%s): row, col = %.6f, %.6f" % ("WesternUS", thisType, UIBrow, UIBcol))
-        rows[i] = UIBrow
-        cols[i] = UIBcol
-
-    rows = (rows + 0.5).astype('int32')
-    cols = (cols + 0.5).astype('int32')
-
-    print(gpds)
-    print("%d %d %d %d %d %d" % (
-        cols[0], rows[0],
-        cols[1], rows[1],
-        cols[2], rows[2]))
-    
-    
-    return (rows, cols)
-
-# Western CA - pass latitudes and longitudes, returns the rows and columns on the EASE grid for cubefiles, uses the 'find_cube_offset' function 
-def grid_locations_of_WesternCA(lat, lon):
-    gpds = ["EASE2_N3.125km", "EASE2_N6.25km", "EASE2_N25km"]
-    types = ["36H-SIR", "18H-SIR", "18H-GRD"]
-    
-    print("Input lat, lon = %.6f, %.6f" % (lat, lon))
-    rows = np.zeros((3))
-    cols = np.zeros((3))
-    for i, (thisGpd, thisType) in enumerate(zip(gpds, types)):
-        grid = Ease2Transform(thisGpd)
-        row, col = grid.geographic_to_grid(lat, lon)
-        print("%15s         : row, col = %.6f, %.6f" % (thisGpd, row, col))
-        
-        # Get the cube offsets
-        offset_row, offset_col = find_WesternCA_cube_offset(
-            cubeType=thisType)
-        UIBrow = row - offset_row
-        UIBcol = col - offset_col
-        print("%15s(%s): row, col = %.6f, %.6f" % ("WesternUS", thisType, UIBrow, UIBcol))
-        rows[i] = UIBrow
-        cols[i] = UIBcol
-
-    rows = (rows + 0.5).astype('int32')
-    cols = (cols + 0.5).astype('int32')
-
-    print(gpds)
-    print("%d %d %d %d %d %d" % (
-        cols[0], rows[0],
-        cols[1], rows[1],
-        cols[2], rows[2]))
-    
-    
-    return (rows, cols)
-
-# UIB - pass latitudes and longitudes, returns the rows and columns on the EASE grid for cubefiles, uses the 'find_cube_offset' function 
-def grid_locations_of_UIB(lat, lon):
-    gpds = ["EASE2_N3.125km", "EASE2_N6.25km", "EASE2_N25km"]
-    types = ["36H-SIR", "18H-SIR", "18H-GRD"]
-    
-    print("Input lat, lon = %.6f, %.6f" % (lat, lon))
-    rows = np.zeros((3))
-    cols = np.zeros((3))
-    for i, (thisGpd, thisType) in enumerate(zip(gpds, types)):
-        grid = Ease2Transform(thisGpd)
-        row, col = grid.geographic_to_grid(lat, lon)
-        print("%15s         : row, col = %.6f, %.6f" % (thisGpd, row, col))
-        
-        # Get the cube offsets
-        offset_row, offset_col = find_UIB_cube_offset(
-            cubeType=thisType)
-        UIBrow = row - offset_row
-        UIBcol = col - offset_col
-        print("%15s(%s): row, col = %.6f, %.6f" % ("UIB", thisType, UIBrow, UIBcol))
-        rows[i] = UIBrow
-        cols[i] = UIBcol
-
-    rows = (rows + 0.5).astype('int32')
-    cols = (cols + 0.5).astype('int32')
-
-    print(gpds)
-    print("%d %d %d %d %d %d" % (
-        cols[0], rows[0],
-        cols[1], rows[1],
-        cols[2], rows[2]))
-    
-    
-    return (rows, cols)
-
-#joanadding
-
-# GreatLakes - pass latitudes and longitudes, returns the rows and columns on the EASE grid for cubefiles, uses the 'find_cube_offset' function 
-def grid_locations_of_GreatLakes(lat, lon):
-    gpds = ["EASE2_N3.125km", "EASE2_N6.25km", "EASE2_N25km"]
-    types = ["36H-SIR", "18H-SIR", "18H-GRD"]
-    
-    print("Input lat, lon = %.6f, %.6f" % (lat, lon))
-    rows = np.zeros((3))
-    cols = np.zeros((3))
-    for i, (thisGpd, thisType) in enumerate(zip(gpds, types)):
-        grid = Ease2Transform(thisGpd)
-        row, col = grid.geographic_to_grid(lat, lon)
-        print("%15s         : row, col = %.6f, %.6f" % (thisGpd, row, col))
-        
-        # Get the cube offsets
-        offset_row, offset_col = find_GreatLakes_cube_offset(
-            cubeType=thisType)
-        UIBrow = row - offset_row
-        UIBcol = col - offset_col
-        print("%15s(%s): row, col = %.6f, %.6f" % ("GreatLakes", thisType, UIBrow, UIBcol))
-        rows[i] = UIBrow
-        cols[i] = UIBcol
-
-    rows = (rows + 0.5).astype('int32')
-    cols = (cols + 0.5).astype('int32')
-
-    print(gpds)
-    print("%d %d %d %d %d %d" % (
-        cols[0], rows[0],
-        cols[1], rows[1],
-        cols[2], rows[2]))
-    
-    
-    return (rows, cols)
-
-# Laptev - pass latitudes and longitudes, returns the rows and columns on the EASE grid for cubefiles, uses the 'find_cube_offset' function 
-def grid_locations_of_Laptev(lat, lon):
-    gpds = ["EASE2_N3.125km", "EASE2_N6.25km", "EASE2_N25km"]
-    types = ["36H-SIR", "18H-SIR", "18H-GRD"]
-    
-    print("Input lat, lon = %.6f, %.6f" % (lat, lon))
-    rows = np.zeros((3))
-    cols = np.zeros((3))
-    for i, (thisGpd, thisType) in enumerate(zip(gpds, types)):
-        grid = Ease2Transform(thisGpd)
-        row, col = grid.geographic_to_grid(lat, lon)
-        print("%15s         : row, col = %.6f, %.6f" % (thisGpd, row, col))
-        
-        # Get the cube offsets
-        offset_row, offset_col = find_Laptev_cube_offset(
-            cubeType=thisType)
-        UIBrow = row - offset_row
-        UIBcol = col - offset_col
-        print("%15s(%s): row, col = %.6f, %.6f" % ("Laptev", thisType, UIBrow, UIBcol))
-        rows[i] = UIBrow
-        cols[i] = UIBcol
-
-    rows = (rows + 0.5).astype('int32')
-    cols = (cols + 0.5).astype('int32')
-
-    print(gpds)
-    print("%d %d %d %d %d %d" % (
-        cols[0], rows[0],
-        cols[1], rows[1],
-        cols[2], rows[2]))
-    
-    
-    return (rows, cols)
-
-# Barents - pass latitudes and longitudes, returns the rows and columns on the EASE grid for cubefiles, uses the 'find_cube_offset' function 
-def grid_locations_of_Barents(lat, lon):
-    gpds = ["EASE2_N3.125km", "EASE2_N6.25km", "EASE2_N25km"]
-    types = ["36H-SIR", "18H-SIR", "18H-GRD"]
-    
-    print("Input lat, lon = %.6f, %.6f" % (lat, lon))
-    rows = np.zeros((3))
-    cols = np.zeros((3))
-    for i, (thisGpd, thisType) in enumerate(zip(gpds, types)):
-        grid = Ease2Transform(thisGpd)
-        row, col = grid.geographic_to_grid(lat, lon)
-        print("%15s         : row, col = %.6f, %.6f" % (thisGpd, row, col))
-        
-        # Get the cube offsets
-        offset_row, offset_col = find_Barents_cube_offset(
-            cubeType=thisType)
-        UIBrow = row - offset_row
-        UIBcol = col - offset_col
-        print("%15s(%s): row, col = %.6f, %.6f" % ("Barents", thisType, UIBrow, UIBcol))
-        rows[i] = UIBrow
-        cols[i] = UIBcol
-
-    rows = (rows + 0.5).astype('int32')
-    cols = (cols + 0.5).astype('int32')
-
-    print(gpds)
-    print("%d %d %d %d %d %d" % (
-        cols[0], rows[0],
-        cols[1], rows[1],
-        cols[2], rows[2]))
-    
-    
-    return (rows, cols)
-#endjoanadding
 
 # Function for reading in ascii files - IN PROGRESS
 def read_esri_ascii(asc_file, grid=None, reshape=False, name=None, halo=0):
