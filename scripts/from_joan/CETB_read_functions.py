@@ -39,7 +39,14 @@ def read_Tb(datadir, prefix, Years,y_start,y_end,x_start,x_end):
 		else:
 			cal_date = np.concatenate((cal_date, greg_date), axis=0)
 
-		# Handle missing data - Hard coded!!
+		# TB value of 60000 is (unscaled) missing data:
+                # This value is used when there are TBs but the the
+                # reconstruction algorithm didn't converge on an answer
+                # TB value of 0 is no data value:
+                # This value is used when there were no TB measurements
+                # available to grid to this cell location
+                #FIXME: these values should not be hardcoded, they should
+                #be read from the variable metadata
 		CETB_data[CETB_data==60000] = np.NaN
 		CETB_data[CETB_data==0] = np.NaN
 	
@@ -100,9 +107,16 @@ def read_Tb_whole(datadir, prefix, Years,
         else:
             cal_date = np.concatenate((cal_date, greg_date), axis=0)
 
-        # Handle missing data - Hard coded!!
+	# TB value of 60000 is (unscaled) missing data:
+        # This value is used when there are TBs but the the
+        # reconstruction algorithm didn't converge on an answer
+        # TB value of 0 is no data value:
+        # This value is used when there were no TB measurements
+        # available to grid to this cell location
+        #FIXME: these values should not be hardcoded, they should
+        #be read from the variable metadata
         CETB_data[CETB_data==60000] = np.NaN
-        CETB_data[CETB_data==0] = np.NaN
+	CETB_data[CETB_data==0] = np.NaN
 
         # First time through,
         # Fetch the x, y coordinates of the cube (not just the subset)
@@ -163,8 +177,15 @@ def read_Tb_all(datadir, prefix, Years):
 		else:
 			cal_date = np.concatenate((cal_date, greg_date), axis=0)
 
-		# Handle missing data - Hard coded!!
-		CETB_data[CETB_data>=60000] = np.NaN
+		# TB value of 60000 is (unscaled) missing data:
+                # This value is used when there are TBs but the the
+                # reconstruction algorithm didn't converge on an answer
+                # TB value of 0 is no data value:
+                # This value is used when there were no TB measurements
+                # available to grid to this cell location
+                #FIXME: these values should not be hardcoded, they should
+                #be read from the variable metadata
+		CETB_data[CETB_data==60000] = np.NaN
 		CETB_data[CETB_data==0] = np.NaN
 	
 	# get date info for plotting	
@@ -195,11 +216,20 @@ def read_Tb_std_dev(datadir, prefix, Years,y_start,y_end,x_start,x_end):
 		else:
 			CETB_data = np.concatenate((CETB_data, subset), axis=0)
 		
-		# Handle missing data - Hard coded!!
+		# stddev value of 2^16 - 2 missing data:
+                # This value is used when there are TBs but the the
+                # reconstruction algorithm didn't converge on an answer
+                # stddev value of 2^16 - 1 is no data value:
+                # This value is used when there were no TB measurements
+                # available to grid to this cell location
+                # This approach works because 60000 < these values
+                #FIXME: these values should not be hardcoded, they should
+                #be read from the variable metadata
 		CETB_data[CETB_data>=60000] = np.NaN
 		CETB_data[CETB_data==0] = np.NaN
 
 	return CETB_data
+
 
 # read in the Tb_time variable - time of the satellite overpass
 def read_Tb_time(datadir, prefix, Years,y_start,y_end,x_start,x_end):
@@ -217,7 +247,12 @@ def read_Tb_time(datadir, prefix, Years,y_start,y_end,x_start,x_end):
 		else:
 			CETB_data = np.concatenate((CETB_data, subset), axis=0)
 		
-		# Handle missing data - Hard coded!!
+		# TB_time value has no missing data values
+                # TB_time value of min(INT16) is no data value:
+                # This value is used when there were no TB measurements
+                # available to grid to this cell location
+                #FIXME: these values should not be hardcoded, they should
+                #be read from the variable metadata
 		#CETB_data[CETB_data>60000] = np.NaN
 		#CETB_data[CETB_data==0] = np.NaN
 
