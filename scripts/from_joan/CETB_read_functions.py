@@ -288,187 +288,46 @@ def calc_DAV(CETB_data):
 	DAV_abs=np.insert(DAV_abs, [0],[0], axis=0)	# insert a 0 at beginning of array so same length as CETB_data for plotting together
 	return DAV_abs
 
-# find the offset to be used for locating the grid row/col from lat/lon coordinates (GLaIL)
-def find_GLaIL_cube_offset(cubeType=None, verbose=False):
-    if not cubeType:
-        cubeType = '36V-SIR'
-        
-    cubeFile = "%s%s%s%s" % (
-        "/home/mij216/Desktop/data3/cetb/cubes/AQUA_AMSRE/GLaIL/",
-        "CETB.cubefile.GLaIL.AQUA_AMSRE-",
-        cubeType,
-        "-RSS-v1.3.2003.TB.nc") 
-        
-    f = Dataset(cubeFile, "r", "NETCDF4")   
-    lats = f.variables['latitude'][:]
-    lons = f.variables['longitude'][:]
-    baseGPD = f.variables['crs'].long_name
-    f.close()
-    # find and return the baseGPD (row, col) offset for cubeUL(0, 0) location
-    
-    grid = Ease2Transform(baseGPD)
-    row_offset, col_offset = grid.geographic_to_grid(lats[0,0], lons[0,0])
+# find the offset to be used for locating the grid row/col from lat/lon coordinates
+# for the requested subsetName
+# subsetNames are, for e.g. "GLaIL" or "WesternCA" etc.
+def find_cube_offset(subsetName, cubeDir=None, cubeType=None, verbose=False):
+        # when no cubeDir is specified, assume it's in a regular
+        # location on fringe        
+        if not cubeDir:
+                cubeDir = "%s%s" % (
+                        "/home/mij216/Desktop/data3/cetb/cubes/AQUA_AMSRE/",
+                        subsetName )
 
-    if verbose:
-        print("%10s offsets for cubeType=%s" % (baseGPD, cubeType))
-        print("(Add these offsets to cube (row, col) to get row, col in full hemisphere)")
-        print("offset row = %f, offset col = %f" % (row_offset, col_offset))
-        
-    return row_offset, col_offset  
+        if not cubeType:
+                cubeType = '36V-SIR'
 
-# offset for Western US cubes
-def find_WesternUS_cube_offset(cubeType=None, verbose=False):
-    if not cubeType:
-        cubeType = '36V-SIR'
+        cubePattern = "%s/CETB.cubefile.%s.AQUA_AMSRE-%s-RSS-v*.*.TB.nc" % (
+                cubeDir,
+                subsetName,
+                cubeType)
         
-    cubeFile = "%s%s%s%s" % (
-        "/home/mij216/Desktop/data3/cetb/cubes/AQUA_AMSRE/WesternUS/",
-        "CETB.cubefile.WesternUS.AQUA_AMSRE-",
-        cubeType,
-        "-RSS-v1.3.2003.TB.nc")
+        # Just use the last one found
+        list = glob.glob(cubePattern)
+        cubeFile = list[-1]
+        print("Reading offset information from cubeFile=%s..." % (cubeFile))
         
-    f = Dataset(cubeFile, "r", "NETCDF4")   
-    lats = f.variables['latitude'][:]
-    lons = f.variables['longitude'][:]
-    baseGPD = f.variables['crs'].long_name
-    f.close()
-	# find and return the baseGPD (row, col) offset for cubeUL(0, 0) location
-    grid = Ease2Transform(baseGPD)
-    row_offset, col_offset = grid.geographic_to_grid(lats[0,0], lons[0,0])
+        f = Dataset(cubeFile, "r", "NETCDF4")   
+        lats = f.variables['latitude'][:]
+        lons = f.variables['longitude'][:]
+        baseGPD = f.variables['crs'].long_name
+        f.close()
 
-    if verbose:
-        print("%10s offsets for cubeType=%s" % (baseGPD, cubeType))
-        print("(Add these offsets to cube (row, col) to get row, col in full hemisphere)")
-        print("offset row = %f, offset col = %f" % (row_offset, col_offset))
-        
-    return row_offset, col_offset 
+        # find and return the baseGPD (row, col) offset for cubeUL(0, 0) location
+        grid = Ease2Transform(baseGPD)
+        row_offset, col_offset = grid.geographic_to_grid(lats[0,0], lons[0,0])
 
-# offset of Western CA cubes
-def find_WesternCA_cube_offset(cubeType=None, verbose=False):
-    if not cubeType:
-        cubeType = '36V-SIR'
+        if verbose:
+                print("%10s offsets for subsetName=%s and cubeType=%s" % (baseGPD, subsetName, cubeType))
+                print("(Add these offsets to cube (row, col) to get row, col in full hemisphere)")
+                print("offset row = %f, offset col = %f" % (row_offset, col_offset))
         
-    cubeFile = "%s%s%s%s" % (
-        "/home/mij216/Desktop/data3/cetb/cubes/AQUA_AMSRE/WesternCA/",
-        "CETB.cubefile.WesternCA.AQUA_AMSRE-",
-        cubeType,
-        "-RSS-v1.3.2003.TB.nc")
-        
-    f = Dataset(cubeFile, "r", "NETCDF4")   
-    lats = f.variables['latitude'][:]
-    lons = f.variables['longitude'][:]
-    baseGPD = f.variables['crs'].long_name
-    f.close()
-	# find and return the baseGPD (row, col) offset for cubeUL(0, 0) location
-    grid = Ease2Transform(baseGPD)
-    row_offset, col_offset = grid.geographic_to_grid(lats[0,0], lons[0,0])
-
-    if verbose:
-        print("%10s offsets for cubeType=%s" % (baseGPD, cubeType))
-        print("(Add these offsets to cube (row, col) to get row, col in full hemisphere)")
-        print("offset row = %f, offset col = %f" % (row_offset, col_offset))
-        
-    return row_offset, col_offset 
-
-# offset for Upper Indus Basin (UIB) cubes
-def find_UIB_cube_offset(cubeType=None, verbose=False):
-    if not cubeType:
-        cubeType = '36V-SIR'
-        
-    cubeFile = "%s%s%s%s" % (
-        "/home/mij216/Desktop/data3/cetb/cubes/AQUA_AMSRE/UIB/",
-        "CETB.cubefile.UIB.AQUA_AMSRE-",
-        cubeType,
-        "-RSS-v1.3.2003.TB.nc")
-        
-    f = Dataset(cubeFile, "r", "NETCDF4")   
-    lats = f.variables['latitude'][:]
-    lons = f.variables['longitude'][:]
-    baseGPD = f.variables['crs'].long_name
-    f.close() 
-
-#Joanadding
-# offset for GreatLakes cubes
-def find_GreatLakes_cube_offset(cubeType=None, verbose=False):
-    if not cubeType:
-        cubeType = '36V-SIR'
-        
-    cubeFile = "%s%s%s%s" % (
-        "/home/mij216/Desktop/data3/cetb/cubes/AQUA_AMSRE/GreatLakes/",
-        "CETB.cubefile.GreatLakes.AQUA_AMSRE-",
-        cubeType,
-        "-RSS-v1.3.2003.TB.nc")
-        
-    f = Dataset(cubeFile, "r", "NETCDF4")   
-    lats = f.variables['latitude'][:]
-    lons = f.variables['longitude'][:]
-    baseGPD = f.variables['crs'].long_name
-    f.close()
-	# find and return the baseGPD (row, col) offset for cubeUL(0, 0) location
-    grid = Ease2Transform(baseGPD)
-    row_offset, col_offset = grid.geographic_to_grid(lats[0,0], lons[0,0])
-
-    if verbose:
-        print("%10s offsets for cubeType=%s" % (baseGPD, cubeType))
-        print("(Add these offsets to cube (row, col) to get row, col in full hemisphere)")
-        print("offset row = %f, offset col = %f" % (row_offset, col_offset))
-        
-    return row_offset, col_offset
-
-# offset for Laptev cubes (includes SevZ)
-def find_Laptev_cube_offset(cubeType=None, verbose=False):
-    if not cubeType:
-        cubeType = '36V-SIR'
-        
-    cubeFile = "%s%s%s%s" % (
-        "/home/mij216/Desktop/data3/cetb/cubes/AQUA_AMSRE/Laptev/",
-        "CETB.cubefile.Laptev.AQUA_AMSRE-",
-        cubeType,
-        "-RSS-v1.3.2003.TB.nc")
-        
-    f = Dataset(cubeFile, "r", "NETCDF4")   
-    lats = f.variables['latitude'][:]
-    lons = f.variables['longitude'][:]
-    baseGPD = f.variables['crs'].long_name
-    f.close()
-	# find and return the baseGPD (row, col) offset for cubeUL(0, 0) location
-    grid = Ease2Transform(baseGPD)
-    row_offset, col_offset = grid.geographic_to_grid(lats[0,0], lons[0,0])
-
-    if verbose:
-        print("%10s offsets for cubeType=%s" % (baseGPD, cubeType))
-        print("(Add these offsets to cube (row, col) to get row, col in full hemisphere)")
-        print("offset row = %f, offset col = %f" % (row_offset, col_offset))
-        
-    return row_offset, col_offset
-
-# offset for Barents cubes (includes NovZ)
-def find_Barents_cube_offset(cubeType=None, verbose=False):
-    if not cubeType:
-        cubeType = '36V-SIR'
-        
-    cubeFile = "%s%s%s%s" % (
-        "/home/mij216/Desktop/data3/cetb/cubes/AQUA_AMSRE/Barents/",
-        "CETB.cubefile.Barents.AQUA_AMSRE-",
-        cubeType,
-        "-RSS-v1.3.2003.TB.nc")
-        
-    f = Dataset(cubeFile, "r", "NETCDF4")   
-    lats = f.variables['latitude'][:]
-    lons = f.variables['longitude'][:]
-    baseGPD = f.variables['crs'].long_name
-    f.close()
-	# find and return the baseGPD (row, col) offset for cubeUL(0, 0) location
-    grid = Ease2Transform(baseGPD)
-    row_offset, col_offset = grid.geographic_to_grid(lats[0,0], lons[0,0])
-
-    if verbose:
-        print("%10s offsets for cubeType=%s" % (baseGPD, cubeType))
-        print("(Add these offsets to cube (row, col) to get row, col in full hemisphere)")
-        print("offset row = %f, offset col = %f" % (row_offset, col_offset))
-        
-    return row_offset, col_offset
-#EndJoanadding
+        return row_offset, col_offset  
 
 
 # GLaIL - pass latitudes and longitudes, returns the rows and columns on the EASE grid for cubefiles, uses the 'find_cube_offset' function 
