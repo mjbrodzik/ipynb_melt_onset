@@ -77,7 +77,15 @@ def read_Tb(datadir, prefix, Years,
 
     return {'TB': CETB_data,
             'cal_date': cal_date,
-            'cal_year': cal_year,def grid_locations_of_WesternUS(lat, lon):
+            'cal_year': cal_year,
+            'cal_month': cal_month,
+            'gpd': gpd,
+            'x': x,
+            'y': y,
+            'latitude': latitude,
+            'longitude': longitude}
+
+def grid_locations_of_WesternUS(lat, lon):
     gpds = ["EASE2_N3.125km", "EASE2_N6.25km", "EASE2_N25km"]
     types = ["36H-SIR", "18H-SIR", "18H-GRD"]
 
@@ -109,12 +117,6 @@ def read_Tb(datadir, prefix, Years,
         cols[2], rows[2]))
 
     return (rows, cols)
-            'cal_month': cal_month,
-            'gpd': gpd,
-            'x': x,
-            'y': y,
-            'latitude': latitude,
-            'longitude': longitude}
 
 # load ALL TB data for a cubefile
 def read_Tb_all(datadir, prefix, Years):
