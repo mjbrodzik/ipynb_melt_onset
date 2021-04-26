@@ -15,52 +15,53 @@ warnings.filterwarnings("ignore",category =RuntimeWarning)
 # that doesn't force entry of the subset to read and that
 # returns gridding metadata from the .nc file
 def read_Tb(datadir, prefix, Years,y_start,y_end,x_start,x_end):
-	for year in Years:
-		# Create filename
-		filename=datadir+prefix+'.'+str(year)+'.TB.nc'
-		list=glob.glob(filename)
-		
-		# load the raw data in
-		rawdata = Dataset(list[-1], "r", format="NETCDF4")
-		
-		# Compile the CETB data, the TB variable is saved as (time, y, x) - 
-		subset = rawdata.variables['TB'][0:,y_start:y_end,x_start:x_end]
-		if year==Years[0]:
-			CETB_data = subset
-		else:
-			CETB_data = np.concatenate((CETB_data, subset), axis=0)
-		
-		# Compile the date information
-		d=rawdata.variables['time']
-		date=d[:]
-		greg_date = num2date(date[:], units=d.units,calendar=d.calendar) 
-		if year==Years[0]:
-			cal_date = greg_date
-		else:
-			cal_date = np.concatenate((cal_date, greg_date), axis=0)
+    for year in Years:
 
-		# TB value of 60000 is (unscaled) missing data:
-                # This value is used when there are TBs but the the
-                # reconstruction algorithm didn't converge on an answer
-                # TB value of 0 is no data value:
-                # This value is used when there were no TB measurements
-                # available to grid to this cell location
-                #FIXME: these values should not be hardcoded, they should
-                #be read from the variable metadata
-		CETB_data[CETB_data==60000] = np.NaN
-		CETB_data[CETB_data==0] = np.NaN
-	
-	# get date info for plotting	
-	cal_year = np.empty([len(cal_date)], dtype=float)
-	for n in range(0,len(cal_date)):
-    		cal_year[n]=cal_date[n].year
-    
-	# set up an array with the month data, if want to examine Tb data for a particular month
-	cal_month = np.empty([len(cal_date)], dtype=float)
-	for n in range(0,len(cal_date)):
-   		cal_month[n]=cal_date[n].month
+        # Create filename
+        filename=datadir+prefix+'.'+str(year)+'.TB.nc'
+        list=glob.glob(filename)
+        
+        # load the raw data in
+        rawdata = Dataset(list[-1], "r", format="NETCDF4")
+                
+        # Compile the CETB data, the TB variable is saved as (time, y, x) - 
+        subset = rawdata.variables['TB'][0:,y_start:y_end,x_start:x_end]
+        if year==Years[0]:
+            CETB_data = subset
+        else:
+            CETB_data = np.concatenate((CETB_data, subset), axis=0)
 
-	return CETB_data, cal_date, cal_year, cal_month
+        # Compile the date information
+        d=rawdata.variables['time']
+        date=d[:]
+        greg_date = num2date(date[:], units=d.units,calendar=d.calendar)
+        if year==Years[0]:
+            cal_date = greg_date
+        else:
+            cal_date = np.concatenate((cal_date, greg_date), axis=0)
+
+        # TB value of 60000 is (unscaled) missing data:
+        # This value is used when there are TBs but the the
+        # reconstruction algorithm didn't converge on an answer
+        # TB value of 0 is no data value:
+        # This value is used when there were no TB measurements
+        # available to grid to this cell location
+        #FIXME: these values should not be hardcoded, they should
+        #be read from the variable metadata
+        CETB_data[CETB_data==60000] = np.NaN
+        CETB_data[CETB_data==0] = np.NaN
+
+    # get date info for plotting
+    cal_year = np.empty([len(cal_date)], dtype=float)
+    for n in range(0,len(cal_date)):
+        cal_year[n]=cal_date[n].year
+            
+    # set up an array with the month data, if want to examine Tb data for a particular month
+    cal_month = np.empty([len(cal_date)], dtype=float)
+    for n in range(0,len(cal_date)):
+        cal_month[n]=cal_date[n].month
+
+    return CETB_data, cal_date, cal_year, cal_month
 
 # load CETB data for a sensor of interest
 # if no subset arguments are included, reads the whole cube
@@ -79,7 +80,7 @@ def read_Tb_whole(datadir, prefix, Years,
     for year in Years:
         # Create filename
         filename = datadir+prefix+'.'+str(year)+'.TB.nc'
-	list=glob.glob(filename)
+        list=glob.glob(filename)
         filename = list[-1]
         
         print("Next filename=%s..." % filename)
@@ -107,7 +108,7 @@ def read_Tb_whole(datadir, prefix, Years,
         else:
             cal_date = np.concatenate((cal_date, greg_date), axis=0)
 
-	# TB value of 60000 is (unscaled) missing data:
+        # TB value of 60000 is (unscaled) missing data:
         # This value is used when there are TBs but the the
         # reconstruction algorithm didn't converge on an answer
         # TB value of 0 is no data value:
@@ -116,7 +117,7 @@ def read_Tb_whole(datadir, prefix, Years,
         #FIXME: these values should not be hardcoded, they should
         #be read from the variable metadata
         CETB_data[CETB_data==60000] = np.NaN
-	CETB_data[CETB_data==0] = np.NaN
+        CETB_data[CETB_data==0] = np.NaN
 
         # First time through,
         # Fetch the x, y coordinates of the cube (not just the subset)
@@ -154,109 +155,111 @@ def read_Tb_whole(datadir, prefix, Years,
 
 # load ALL TB data for a cubefile
 def read_Tb_all(datadir, prefix, Years):
-	for year in Years:
-		# Create filename
-		filename=datadir+prefix+'.'+str(year)+'.TB.nc'
-		list=glob.glob(filename)
-		# load the raw data in
-		rawdata = Dataset(list[-1], "r", format="NETCDF4")
-		
-		# Compile the CETB data, the TB variable is saved as (time, y, x) - 
-		subset = rawdata.variables['TB'][0:,:,:]
-		if year==Years[0]:
-			CETB_data = subset
-		else:
-			CETB_data = np.concatenate((CETB_data, subset), axis=0)
-		
-		# Compile the date information
-		d=rawdata.variables['time']
-		date=d[:]
-		greg_date = num2date(date[:], units=d.units,calendar=d.calendar) 
-		if year==Years[0]:
-			cal_date = greg_date
-		else:
-			cal_date = np.concatenate((cal_date, greg_date), axis=0)
+    for year in Years:
+        # Create filename
+        filename=datadir+prefix+'.'+str(year)+'.TB.nc'
+        list=glob.glob(filename)
+        # load the raw data in
+        rawdata = Dataset(list[-1], "r", format="NETCDF4")
+                
+        # Compile the CETB data, the TB variable is saved as (time, y, x) - 
+        subset = rawdata.variables['TB'][0:,:,:]
+        if year==Years[0]:
+            CETB_data = subset
+        else:
+            CETB_data = np.concatenate((CETB_data, subset), axis=0)
+                
+        # Compile the date information
+        d=rawdata.variables['time']
+        date=d[:]
+        greg_date = num2date(date[:], units=d.units,calendar=d.calendar) 
+        if year==Years[0]:
+            cal_date = greg_date
+        else:
+            cal_date = np.concatenate((cal_date, greg_date), axis=0)
 
-		# TB value of 60000 is (unscaled) missing data:
-                # This value is used when there are TBs but the the
-                # reconstruction algorithm didn't converge on an answer
-                # TB value of 0 is no data value:
-                # This value is used when there were no TB measurements
-                # available to grid to this cell location
-                #FIXME: these values should not be hardcoded, they should
-                #be read from the variable metadata
-		CETB_data[CETB_data==60000] = np.NaN
-		CETB_data[CETB_data==0] = np.NaN
-	
-	# get date info for plotting	
-	cal_year = np.empty([len(cal_date)], dtype=float)
-	for n in range(0,len(cal_date)):
-    		cal_year[n]=cal_date[n].year
+        # TB value of 60000 is (unscaled) missing data:
+        # This value is used when there are TBs but the the
+        # reconstruction algorithm didn't converge on an answer
+        # TB value of 0 is no data value:
+        # This value is used when there were no TB measurements
+        # available to grid to this cell location
+        #FIXME: these values should not be hardcoded, they should
+        #be read from the variable metadata
+        CETB_data[CETB_data==60000] = np.NaN
+        CETB_data[CETB_data==0] = np.NaN
+        
+    # get date info for plotting        
+    cal_year = np.empty([len(cal_date)], dtype=float)
+    for n in range(0,len(cal_date)):
+        cal_year[n]=cal_date[n].year
     
-	# set up an array with the month data, if want to examine Tb data for a particular month
-	cal_month = np.empty([len(cal_date)], dtype=float)
-	for n in range(0,len(cal_date)):
-   		cal_month[n]=cal_date[n].month
+    # set up an array with the month data, if want to examine Tb data for a particular month
+    cal_month = np.empty([len(cal_date)], dtype=float)
+    for n in range(0,len(cal_date)):
+        cal_month[n]=cal_date[n].month
 
-	return CETB_data, cal_date, cal_year, cal_month
+    return CETB_data, cal_date, cal_year, cal_month
 
 # read in Tb standard deviation data
 def read_Tb_std_dev(datadir, prefix, Years,y_start,y_end,x_start,x_end):
-	for year in Years:
-		# Create filename
-		filename=datadir+prefix+'.'+str(year)+'.TB_std_dev.nc'
-		list=glob.glob(filename)
-		# load the raw data in
-		rawdata = Dataset(list[-1], "r", format="NETCDF4")
-		
-		# Compile the CETB data, the TB variable is saved as (time, y, x) - 
-		subset = rawdata.variables['TB_std_dev'][0:,y_start:y_end,x_start:x_end]
-		if year==Years[0]:
-			CETB_data = subset
-		else:
-			CETB_data = np.concatenate((CETB_data, subset), axis=0)
-		
-		# stddev value of 2^16 - 2 missing data:
-                # This value is used when there are TBs but the the
-                # reconstruction algorithm didn't converge on an answer
-                # stddev value of 2^16 - 1 is no data value:
-                # This value is used when there were no TB measurements
-                # available to grid to this cell location
-                # This approach works because 60000 < these values
-                #FIXME: these values should not be hardcoded, they should
-                #be read from the variable metadata
-		CETB_data[CETB_data>=60000] = np.NaN
-		CETB_data[CETB_data==0] = np.NaN
+    for year in Years:
 
-	return CETB_data
+        # Create filename
+        filename=datadir+prefix+'.'+str(year)+'.TB_std_dev.nc'
+        list=glob.glob(filename)
+        # load the raw data in
+        rawdata = Dataset(list[-1], "r", format="NETCDF4")
+                
+        # Compile the CETB data, the TB variable is saved as (time, y, x) - 
+        subset = rawdata.variables['TB_std_dev'][0:,y_start:y_end,x_start:x_end]
+        if year==Years[0]:
+            CETB_data = subset
+        else:
+            CETB_data = np.concatenate((CETB_data, subset), axis=0)
+                
+        # stddev value of 2^16 - 2 missing data:
+        # This value is used when there are TBs but the the
+        # reconstruction algorithm didn't converge on an answer
+        # stddev value of 2^16 - 1 is no data value:
+        # This value is used when there were no TB measurements
+        # available to grid to this cell location
+        # This approach works because 60000 < these values
+        #FIXME: these values should not be hardcoded, they should
+        #be read from the variable metadata
+        CETB_data[CETB_data>=60000] = np.NaN
+        CETB_data[CETB_data==0] = np.NaN
+
+    return CETB_data
 
 
 # read in the Tb_time variable - time of the satellite overpass
 def read_Tb_time(datadir, prefix, Years,y_start,y_end,x_start,x_end):
-	for year in Years:
-	# Create filename
-		filename=datadir+prefix+'.'+str(year)+'.TB_time.nc'
-		list=glob.glob(filename)
-		# load the raw data in
-		rawdata = Dataset(list[-1], "r", format="NETCDF4")
-	
-		# Compile the CETB data, the TB variable is saved as (time, y, x) - 
-		subset = rawdata.variables['TB_time'][0:,y_start:y_end,x_start:x_end]
-		if year==Years[0]:
-			CETB_data = subset
-		else:
-			CETB_data = np.concatenate((CETB_data, subset), axis=0)
-		
-		# TB_time value has no missing data values
-                # TB_time value of min(INT16) is no data value:
-                # This value is used when there were no TB measurements
-                # available to grid to this cell location
-                #FIXME: these values should not be hardcoded, they should
-                #be read from the variable metadata
-		#CETB_data[CETB_data>60000] = np.NaN
-		#CETB_data[CETB_data==0] = np.NaN
+    for year in Years:
 
-	return CETB_data
+        # Create filename
+        filename=datadir+prefix+'.'+str(year)+'.TB_time.nc'
+        list=glob.glob(filename)
+        # load the raw data in
+        rawdata = Dataset(list[-1], "r", format="NETCDF4")
+        
+        # Compile the CETB data, the TB variable is saved as (time, y, x) - 
+        subset = rawdata.variables['TB_time'][0:,y_start:y_end,x_start:x_end]
+        if year==Years[0]:
+            CETB_data = subset
+        else:
+            CETB_data = np.concatenate((CETB_data, subset), axis=0)
+                
+        # TB_time value has no missing data values
+        # TB_time value of min(INT16) is no data value:
+        # This value is used when there were no TB measurements
+        # available to grid to this cell location
+        #FIXME: these values should not be hardcoded, they should
+        #be read from the variable metadata
+        #CETB_data[CETB_data>60000] = np.NaN
+        #CETB_data[CETB_data==0] = np.NaN
+
+    return CETB_data
 
 def coords(datadir, prefix, lat_start, lat_end, lon_start, lon_end):
     # this function takes the user inputs of latitude and longitude
@@ -317,90 +320,94 @@ def coords(datadir, prefix, lat_start, lat_end, lon_start, lon_end):
         return y_start,y_end,x_start,x_end
 
 def calc_DAV(CETB_data):
-	# function takes the CETB_data that was read in read_Tb() and returns the absolute value of the DAV	
-	DAV=np.diff(CETB_data,n=1,axis=0)
-	DAV_abs=np.absolute(DAV)	
-	DAV_abs=np.insert(DAV_abs, [0],[0], axis=0)	# insert a 0 at beginning of array so same length as CETB_data for plotting together
-	return DAV_abs
+
+    # function takes the CETB_data that was read in read_Tb() and returns the absolute value of the DAV         
+    DAV=np.diff(CETB_data,n=1,axis=0)
+    DAV_abs=np.absolute(DAV)    
+    DAV_abs=np.insert(DAV_abs, [0],[0], axis=0)         # insert a 0 at beginning of array so same length as CETB_data for plotting together
+
+    return DAV_abs
 
 # find the offset to be used for locating the grid row/col from lat/lon coordinates
 # for the requested subsetName
 # subsetNames are, for e.g. "GLaIL" or "WesternCA" etc.
 def find_cube_offset(subsetName, cubeDir=None, cubeType=None, verbose=False):
-        # when no cubeDir is specified, assume it's in a regular
-        # location on fringe        
-        if not cubeDir:
-                cubeDir = "%s%s" % (
-                        "/home/mij216/Desktop/data3/cetb/cubes/AQUA_AMSRE/",
-                        subsetName )
 
-        if not cubeType:
-                cubeType = '36V-SIR'
+    # when no cubeDir is specified, assume it's in a regular
+    # location on fringe        
+    if not cubeDir:
+        cubeDir = "%s%s" % (
+            "/home/mij216/Desktop/data3/cetb/cubes/AQUA_AMSRE/",
+            subsetName )
 
-        cubePattern = "%s/CETB.cubefile.%s.AQUA_AMSRE-%s-RSS-v*.*.TB.nc" % (
-                cubeDir,
-                subsetName,
-                cubeType)
+    if not cubeType:
+        cubeType = '36V-SIR'
+
+    cubePattern = "%s/CETB.cubefile.%s.AQUA_AMSRE-%s-RSS-v*.*.TB.nc" % (
+        cubeDir,
+        subsetName,
+        cubeType)
         
-        # Just use the last one found
-        list = glob.glob(cubePattern)
-        cubeFile = list[-1]
-        print("Reading offset information from cubeFile=%s..." % (cubeFile))
+    # Just use the last one found
+    list = glob.glob(cubePattern)
+    cubeFile = list[-1]
+    print("Reading offset information from cubeFile=%s..." % (cubeFile))
         
-        f = Dataset(cubeFile, "r", "NETCDF4")   
-        lats = f.variables['latitude'][:]
-        lons = f.variables['longitude'][:]
-        baseGPD = f.variables['crs'].long_name
-        f.close()
+    f = Dataset(cubeFile, "r", "NETCDF4")   
+    lats = f.variables['latitude'][:]
+    lons = f.variables['longitude'][:]
+    baseGPD = f.variables['crs'].long_name
+    f.close()
 
-        # find and return the baseGPD (row, col) offset for cubeUL(0, 0) location
-        grid = Ease2Transform(baseGPD)
-        row_offset, col_offset = grid.geographic_to_grid(lats[0,0], lons[0,0])
+    # find and return the baseGPD (row, col) offset for cubeUL(0, 0) location
+    grid = Ease2Transform(baseGPD)
+    row_offset, col_offset = grid.geographic_to_grid(lats[0,0], lons[0,0])
 
-        if verbose:
-                print("%10s offsets for subsetName=%s and cubeType=%s" % (baseGPD, subsetName, cubeType))
-                print("(Add these offsets to cube (row, col) to get row, col in full hemisphere)")
-                print("offset row = %f, offset col = %f" % (row_offset, col_offset))
+    if verbose:
+        print("%10s offsets for subsetName=%s and cubeType=%s" % (baseGPD, subsetName, cubeType))
+        print("(Add these offsets to cube (row, col) to get row, col in full hemisphere)")
+        print("offset row = %f, offset col = %f" % (row_offset, col_offset))
         
-        return row_offset, col_offset  
+    return row_offset, col_offset  
 
 
 # pass subsetName, latitudes and longitudes,
 # returns the rows and columns on the EASE grid for cubefiles,
 # uses the 'find_cube_offset' function
 def grid_locations_of_subset(subsetName, lat, lon):
-        gpds = ["EASE2_N3.125km", "EASE2_N6.25km", "EASE2_N25km"]
-        types = ["36H-SIR", "18H-SIR", "18H-GRD"]
+
+    gpds = ["EASE2_N3.125km", "EASE2_N6.25km", "EASE2_N25km"]
+    types = ["36H-SIR", "18H-SIR", "18H-GRD"]
     
-        print("Input lat, lon = %.6f, %.6f" % (lat, lon))
-        rows = np.zeros((3))
-        cols = np.zeros((3))
-        for i, (thisGpd, thisType) in enumerate(zip(gpds, types)):
-                grid = Ease2Transform(thisGpd)
-                row, col = grid.geographic_to_grid(lat, lon)
-                print("%15s         : row, col = %.6f, %.6f" % (thisGpd, row, col))
+    print("Input lat, lon = %.6f, %.6f" % (lat, lon))
+    rows = np.zeros((3))
+    cols = np.zeros((3))
+    for i, (thisGpd, thisType) in enumerate(zip(gpds, types)):
+        grid = Ease2Transform(thisGpd)
+        row, col = grid.geographic_to_grid(lat, lon)
+        print("%15s         : row, col = %.6f, %.6f" % (thisGpd, row, col))
         
-                # Get the cube offsets
-                offset_row, offset_col = find_cube_offset(
-                        subsetName,
-                        cubeType=thisType)
-                subRow = row - offset_row
-                subCol = col - offset_col
-                print("%15s(%s): row, col = %.6f, %.6f" % (
-                        subsetName, thisType, subRow, subCol))
-                rows[i] = subRow
-                cols[i] = subCol
+        # Get the cube offsets
+        offset_row, offset_col = find_cube_offset(
+            subsetName,
+            cubeType=thisType)
+        subRow = row - offset_row
+        subCol = col - offset_col
+        print("%15s(%s): row, col = %.6f, %.6f" % (
+            subsetName, thisType, subRow, subCol))
+        rows[i] = subRow
+        cols[i] = subCol
 
-        rows = (rows + 0.5).astype('int32')
-        cols = (cols + 0.5).astype('int32')
+    rows = (rows + 0.5).astype('int32')
+    cols = (cols + 0.5).astype('int32')
 
-        print(gpds)
-        print("%d %d %d %d %d %d" % (
-                cols[0], rows[0],
-                cols[1], rows[1],
-                cols[2], rows[2]))
+    print(gpds)
+    print("%d %d %d %d %d %d" % (
+        cols[0], rows[0],
+        cols[1], rows[1],
+        cols[2], rows[2]))
     
-        return (rows, cols)
+    return (rows, cols)
 
 
 # Function for reading in ascii files - IN PROGRESS
@@ -541,6 +548,4 @@ def read_esri_ascii(asc_file, grid=None, reshape=False, name=None, halo=0):
         grid.add_field('node', name, data)
 
     return (grid, data)
-
-
 
