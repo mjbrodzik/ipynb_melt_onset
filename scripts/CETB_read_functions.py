@@ -337,7 +337,7 @@ def find_cube_offset(subsetName, cubeDir=None, cubeType=None, verbose=False):
     # location on fringe        
     if not cubeDir:
         cubeDir = "%s%s" % (
-            "/home/mij216/Desktop/data3/cetb/cubes/AQUA_AMSRE/",
+            "/mnt/data3/cetb/cubes/AQUA_AMSRE/",
             subsetName )
 
     if not cubeType:
