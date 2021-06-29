@@ -252,7 +252,7 @@ def MOD_array(datadir, prefix, CETB_data, DAV,
     MOD=np.ma.array(MOD)   # make it masked array
     MOD[MOD<0]=np.ma.masked   #convert any invalid MODs to masked
 
-    return MOD
+    return MOD, new_frame
 
 # plot map of average MOD for year of interest
 def MOD_array_year(datadir, prefix, CETB_data, DAV,
