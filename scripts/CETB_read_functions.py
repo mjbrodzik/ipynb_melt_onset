@@ -341,12 +341,13 @@ def find_cube_offset(subsetName, cubeDir=None, cubeType=None, verbose=False):
             subsetName )
 
     if not cubeType:
-        cubeType = '36V-SIR'
+        cubeType = '3*V-SIR'
 
-    cubePattern = "%s/CETB.cubefile.%s.AQUA_AMSRE-%s-RSS-v*.*.TB.nc" % (
+    cubePattern = "%s/CETB.cubefile.%s.*-%s-*-v*.*.TB.nc" % (
         cubeDir,
         subsetName,
         cubeType)
+    
         
     # Just use the last one found
     list = glob.glob(cubePattern)
