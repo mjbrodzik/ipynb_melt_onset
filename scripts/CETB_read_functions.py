@@ -348,7 +348,8 @@ def find_cube_offset(subsetName, cubeDir=None, cubeType=None, verbose=False):
         subsetName,
         cubeType)
     
-        
+    print("The pattern is: %s\n" % (cubePattern))
+    
     # Just use the last one found
     list = glob.glob(cubePattern)
     cubeFile = list[-1]
@@ -375,10 +376,11 @@ def find_cube_offset(subsetName, cubeDir=None, cubeType=None, verbose=False):
 # pass subsetName, latitudes and longitudes,
 # returns the rows and columns on the EASE grid for cubefiles,
 # uses the 'find_cube_offset' function
-def grid_locations_of_subset(subsetName, lat, lon):
+def grid_locations_of_subset(subsetName, lat, lon, cubeDir=None):
 
     gpds = ["EASE2_N3.125km", "EASE2_N6.25km", "EASE2_N25km"]
-    types = ["36H-SIR", "18H-SIR", "18H-GRD"]
+    types = ["3*V-SIR", "1*V-SIR", "1*V-GRD"]
+    #possibly change to H or V for flexibility
     
     print("Input lat, lon = %.6f, %.6f" % (lat, lon))
     rows = np.zeros((3))
@@ -391,6 +393,7 @@ def grid_locations_of_subset(subsetName, lat, lon):
         # Get the cube offsets
         offset_row, offset_col = find_cube_offset(
             subsetName,
+            cubeDir=cubeDir,
             cubeType=thisType)
         subRow = row - offset_row
         subCol = col - offset_col
