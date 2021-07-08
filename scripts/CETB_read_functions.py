@@ -1,5 +1,7 @@
+from datetime import datetime
 from netCDF4 import Dataset, num2date
 import numpy as np
+import pandas as pd
 from cetbtools.ease2conv import Ease2Transform
 import warnings
 import glob
@@ -79,11 +81,13 @@ def read_Tb_whole(datadir, prefix, Years,
         
     for year in Years:
         # Create filename
-        filename = datadir+prefix+'.'+str(year)+'.TB.nc'
-        list=glob.glob(filename)
-        filename = list[-1]
-        
-        print("Next filename=%s..." % filename)
+        cubePattern = "%s/%s.%4d.TB.nc" % (datadir, prefix, year)
+        list = glob.glob(cubePattern)
+        if not list:
+            raise IOError("No cubefile found to match the pattern = %s" % (cubePattern))
+        else:
+            filename = list[-1]
+            print("Next filename=%s..." % filename)
 
         # load the raw data in
         rawdata = Dataset(filename, "r", format="NETCDF4")
@@ -141,6 +145,9 @@ def read_Tb_whole(datadir, prefix, Years,
     cal_month = np.empty([len(cal_date)], dtype=float)
     for n in range(0,len(cal_date)):
         cal_month[n]=cal_date[n].month
+        
+    # Convert cal_dates masked array to pd.datetime format
+    cal_date = [ pd.to_datetime(i.strftime("%m/%d/%Y, %H:%M:%S")) for i in cal_date.data ]
 
     return {'TB': CETB_data,
             'cal_date': cal_date,
@@ -348,12 +355,14 @@ def find_cube_offset(subsetName, cubeDir=None, cubeType=None, verbose=False):
         subsetName,
         cubeType)
     
-    print("The pattern is: %s\n" % (cubePattern))
-    
     # Just use the last one found
+    # Check for no files found and return a reasonable error message
     list = glob.glob(cubePattern)
-    cubeFile = list[-1]
-    print("Reading offset information from cubeFile=%s..." % (cubeFile))
+    if not list:
+        raise IOError("No cubefiles found to match the pattern = %s" % (cubePattern))
+    else:
+        cubeFile = list[-1]
+        print("Reading offset information from cubeFile=%s..." % (cubeFile))
         
     f = Dataset(cubeFile, "r", "NETCDF4")   
     lats = f.variables['latitude'][:]
@@ -376,10 +385,12 @@ def find_cube_offset(subsetName, cubeDir=None, cubeType=None, verbose=False):
 # pass subsetName, latitudes and longitudes,
 # returns the rows and columns on the EASE grid for cubefiles,
 # uses the 'find_cube_offset' function
+# this function assumes that at least one 36 or 37V SIR file,
+# one 18 or 19V SIR file and one 18 or 19V GRD file are stored locally
 def grid_locations_of_subset(subsetName, lat, lon, cubeDir=None):
 
     gpds = ["EASE2_N3.125km", "EASE2_N6.25km", "EASE2_N25km"]
-    types = ["3*V-SIR", "1*V-SIR", "1*V-GRD"]
+    types = ["3?V-SIR", "1?V-SIR", "1?V-GRD"]
     #possibly change to H or V for flexibility
     
     print("Input lat, lon = %.6f, %.6f" % (lat, lon))
@@ -405,6 +416,8 @@ def grid_locations_of_subset(subsetName, lat, lon, cubeDir=None):
     rows = (rows + 0.5).astype('int32')
     cols = (cols + 0.5).astype('int32')
 
+    #FIXME: MJB: validate that this routine is returning the correct coordinates
+    #FIXME: This routine should really return a dict structure, not an array
     print(gpds)
     print("%d %d %d %d %d %d" % (
         cols[0], rows[0],

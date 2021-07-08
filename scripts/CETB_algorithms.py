@@ -6,38 +6,69 @@
 from netCDF4 import Dataset, num2date
 import numpy as np
 import pandas as pd
+#import pdb; # insert at places for breakpoints: pdb.set_trace()
 import warnings
 
 # getting a runtimewarning when using operators on numpy arrays with lots of NaNs, functions still perform, but using this command to suppress the warning
 warnings.filterwarnings("ignore",category =RuntimeWarning)
 
-# calculate seasonal melt onset date with the DAV/Tb Threshold algorithm. The user chooses the DAV and Tb thresholds, number (count) of melt occurrences, 
-# and window of days for the algorithm to calculate the MOD.  3 occurrences of tripping Tb/DAV thresholds (252K/18K) in a 5-day (10 observation) window was previously used in Literature (Apgar/Ramage)
-# the current form gets the first day of the year where any pixel in the subset experiences melt
-def DAV_MOD(DAV_threshold, Tb_threshold, count, window, DAV, CETB_data, Years, cal_year, cal_date, rows_cols):
-	np.errstate(invalid='ignore')	
-	y_s=list(range(rows_cols[0],rows_cols[1]))
-	x_s=list(range(rows_cols[2],rows_cols[3]))
-	y_dims_list=list(range(len(CETB_data[0,:,0])))
-	x_dims_list=list(range(len(CETB_data[0,0,:])))
-	
-	melt_condition_met = (DAV>DAV_threshold) & (CETB_data[:,:,:]>Tb_threshold)  #the melt condition is met when both the DAV and the Tb thresholds are exceeded
-	flag = melt_condition_met.astype(int)
-	matrix=pd.DataFrame()
-	for i in y_dims_list:
-    		for j in x_dims_list:
-       			column=pd.DataFrame(data=flag[:,i,j], columns=[str(y_s[i])+','+str(x_s[j])])
-        		matrix=pd.concat([matrix,column],axis=1)
-	matrix=matrix.set_index(cal_date)
-	shift_period=int(window/2)  #shift to get the first MOD trigger
-	matrix=matrix.rolling(window, min_periods=3, center=True).sum().shift(-shift_period)
-	matrix=matrix[matrix>=count]  # convert cells that do not meet criteria to NaN
-	matrix=matrix.dropna(axis=0, how='all')  # deletes all rows of the dataframe that contain all NaN values, switch how='all' to how='any' to delete all rows that contain at least one NaN
-	MOD=matrix.groupby(pd.Grouper(freq='A')).head(1)  #group the dataframe by year, then get the first row for that year
-	MOD=MOD.dropna(axis=1, how='all')	
-	return MOD  # returns a dataframe, each column is a pixel in the specified subset, each row is the algorithm-estimated seasonal melt onset date for that year
+# calculate seasonal melt onset date with the DAV/Tb Threshold algorithm. 
+# The user chooses the DAV and Tb thresholds, 
+# number (count) of melt occurrences, 
+# and window of days for the algorithm to calculate the MOD.  
+# 3 occurrences of tripping Tb/DAV thresholds (e.g. 252K/18K) 
+# in a 5-day (10 observation) window 
+# was previously used in Literature (Apgar/Ramage)
+# the current form gets the first day of the year 
+# where any pixel in the subset experiences melt
+def DAV_MOD(DAV_threshold, Tb_threshold, count, window, 
+            DAV, CETB_data, Years, cal_year, cal_date, rows_cols):
+    
+    #FIXME: this is not usually a good idea to ignore errors
+    #       unless you are absolutely sure they are spurious
+    np.errstate(invalid='ignore')
+    
+    #the melt condition is met when both the DAV and the Tb thresholds are exceeded
+    melt_condition_met = (DAV > DAV_threshold) & (CETB_data[:, :, :] > Tb_threshold)  
+    flag = melt_condition_met.astype(int)
+    
+    # convert the melt condition array to a data frame with
+    # date indexing and 1 column for each pixel in the subset region
+    matrix = pd.DataFrame()
+    for i in np.arange(rows_cols[0], rows_cols[1]):
+        for j in np.arange(rows_cols[2], rows_cols[3]):
+            column = pd.DataFrame(
+                data=flag[:, i, j], 
+                columns=["%d,%d" % (i, j)])
+            matrix = pd.concat([matrix,column], axis=1)
+    
+    matrix['date'] = np.array(cal_date)
+    matrix.set_index('date', inplace=True)
+    
+    # shift to get the first MOD trigger
+    
+    shift_period = int(window / 2)  
+    matrix = matrix.rolling(window, min_periods=3, center=True).sum().shift(-shift_period)
+    
+    # convert cells that do not meet criteria to NaN
+    matrix = matrix[matrix >= count]  
+    
+    # deletes all rows of the dataframe that contain all NaN values, 
+    # switch how='all' to how='any' to delete all rows that contain at least one NaN
+    matrix = matrix.dropna(axis=0, how='all') 
+    
+    # group the dataframe by year, then get the first row for that year
+    MOD = matrix.groupby(pd.Grouper(freq='A')).head(1)  
+    MOD = MOD.dropna(axis=1, how='all')
+    
+    # returns a dataframe, 
+    # each column is a pixel in the specified subset, 
+    # each row is the algorithm-estimated seasonal melt onset date for that year
+    return MOD
 
-# cross-polarized gradient ratio (XPGR) melt algorithm from Abdalati and Steffen, 1995.  Threshold for Greenland is -0.0158 for SSMI
+
+# cross-polarized gradient ratio (XPGR) melt algorithm from Abdalati and Steffen, 1995.  
+# Threshold for Greenland is -0.0158 for SSMI
 def XPGR(CETB_data, CETB_data_2):
 	ymean=np.nanmean(CETB_data_2, axis=1)
 	xmean=np.nanmean(CETB_data_2, axis=2)

@@ -8,6 +8,7 @@ from netCDF4 import Dataset, num2date
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+import pdb; # insert at places for breakpoints: pdb.set_trace()
 import seaborn as sns
 import warnings
 
@@ -196,15 +197,18 @@ def MOD_array(datadir, prefix, CETB_data, DAV,
               DAV_threshold, Tb_threshold):
 
     # Find times/places when melt conditions are satisfied
-    melt_condition_met = (DAV>DAV_threshold) & (CETB_data[:,:,:]>Tb_threshold)
+    melt_condition_met = (DAV > DAV_threshold) & (CETB_data[:, :, :] > Tb_threshold)
     flag = melt_condition_met.astype(int)
 
+    
+    
     # Prepare a DataFrame to do the heavy-lifting on the algorithm:
     # Define a list of column_names with one for each array row, col
     # Populate each row with the flattened data for that date
-    col_names = ["%s,%s" % (str(y),str(x))
-        for y in np.arange(rows_cols[0], rows_cols[1])
-        for x in np.arange(rows_cols[2], rows_cols[3])]
+    col_names = ["%s,%s" % (str(y),str(x)) 
+                 for y in np.arange(rows_cols[0], rows_cols[1])
+                 for x in np.arange(rows_cols[2], rows_cols[3])]
+        
     newdata = np.zeros([flag.shape[0],
                         flag.shape[1] * flag.shape[2]], dtype=flag.dtype)
     print("newdata.shape %s" % str(newdata.shape))
@@ -215,6 +219,8 @@ def MOD_array(datadir, prefix, CETB_data, DAV,
         if np.mod(d, 100) == 0:
             print("Next d = %d" % d)
         newdata[d,] = flag[d, :, :].flatten()
+    
+    pdb.set_trace()
     matrix = pd.DataFrame(data=newdata, columns=col_names)
     matrix=matrix.set_index(cal_date)
 
