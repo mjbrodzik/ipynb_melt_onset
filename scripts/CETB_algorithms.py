@@ -6,11 +6,57 @@
 from netCDF4 import Dataset, num2date
 import numpy as np
 import pandas as pd
-#import pdb; # insert at places for breakpoints: pdb.set_trace()
+import pdb; # insert at places for breakpoints: pdb.set_trace()
 import warnings
 
 # getting a runtimewarning when using operators on numpy arrays with lots of NaNs, functions still perform, but using this command to suppress the warning
 warnings.filterwarnings("ignore",category =RuntimeWarning)
+
+# findMOD: Finds the first date in each column of the input DataFrame that meets melt criteria
+# Input:
+# df : DataFrame with 1 column for each pixel
+#      and 1 row for each date, with pd.datetime64 index
+#      Values are NaN for no melt, non-NaN when melt criteria have been triggered
+#      Assumes that date rows are in chronological order, so that the
+#      first non-NaN entry indicates the melt onset date (MOD)
+# Output:
+# DataFrame with columns to match input df columns
+#      and 1 row, with the datetime value of the first row in df[col]
+#      with non-NaN value
+#
+# Assumes non-melting dates are NaNs
+# WE MAY NEED TO CHECK FOR THIS:
+# Also assumes that each column has at least 1 non-NaN value
+def findMOD(df):
+    
+    # Make a datetime to correspond to the end of this year
+    yearEnd_dt = pd.to_datetime("%4d-12-31" % df.index[0].year, format="%Y-%m-%d")
+    
+    # Make a blank DataFrame for this row (which will hold the MOD for this year for
+    # each pixel)
+    myYearMOD = pd.DataFrame(index = [yearEnd_dt], columns=df.columns)
+
+    # Treat each column of data as a separate entity
+    # and look for the the first row with non-NaN entry
+    for col in df.columns:
+
+        # Find the places where this column satisfied the
+        # melt criteria in our current algorithm settings
+        # print('column is: %s' % col)
+        # print(d2003[col])
+        isMelting = ~np.isnan(df[col])
+
+        # Get the first date when there was (persistent) melt
+        # print(isMelting)
+        # print("melt onset date:")
+        myMOD = isMelting[isMelting == True].index[0]
+        # print(myMOD)
+    
+        # Save this MOD in the output array for this pixel's column
+        myYearMOD[col] = myMOD
+        
+    return myYearMOD
+
 
 # calculate seasonal melt onset date with the DAV/Tb Threshold algorithm. 
 # The user chooses the DAV and Tb thresholds, 
@@ -45,8 +91,10 @@ def DAV_MOD(DAV_threshold, Tb_threshold, count, window,
     matrix['date'] = np.array(cal_date)
     matrix.set_index('date', inplace=True)
     
-    # shift to get the first MOD trigger
+    # Save the original data frame for output
+    melt_flag_df = matrix.copy()
     
+    # shift to get the first MOD trigger
     shift_period = int(window / 2)  
     matrix = matrix.rolling(window, min_periods=3, center=True).sum().shift(-shift_period)
     
@@ -57,14 +105,20 @@ def DAV_MOD(DAV_threshold, Tb_threshold, count, window,
     # switch how='all' to how='any' to delete all rows that contain at least one NaN
     matrix = matrix.dropna(axis=0, how='all') 
     
-    # group the dataframe by year, then get the first row for that year
-    MOD = matrix.groupby(pd.Grouper(freq='A')).head(1)  
-    MOD = MOD.dropna(axis=1, how='all')
+    # group the dataframe by year, then get the MOD for each pixel by year
+    grouped = matrix.groupby(pd.Grouper(freq='A'))
+    MOD_df = grouped.apply(findMOD)
+    MOD_df.index = MOD_df.index.droplevel()
     
-    # returns a dataframe, 
-    # each column is a pixel in the specified subset, 
-    # each row is the algorithm-estimated seasonal melt onset date for that year
-    return MOD
+    # returns two dataframes:
+    # MOD_df:
+    #    each column is a pixel in the specified subset, 
+    #    each row is the algorithm-estimated seasonal melt onset date at that pixel for that year
+    # melt_flag_df: is is the complete data frame for all dates and subset pixels
+    #    each column is a pixel in the specified subset,
+    #    each row is 1 if melt conditions are met on this date, 0 otherwis
+    # return MOD_df, melt_flag_df
+    return MOD_df, melt_flag_df
 
 
 # cross-polarized gradient ratio (XPGR) melt algorithm from Abdalati and Steffen, 1995.  
