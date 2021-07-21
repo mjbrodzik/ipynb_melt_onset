@@ -26,15 +26,16 @@ warnings.filterwarnings("ignore",category =RuntimeWarning)
 #
 # Assumes non-melting dates are NaNs
 # WE MAY NEED TO CHECK FOR THIS:
-# Also assumes that each column has at least 1 non-NaN value
+# Also assumes:
+#    each input column has at least 1 non-NaN value
+#    first index is a datetime64 obj that we can get the year from 
 def findMOD(df):
-    
-    # Make a datetime to correspond to the end of this year
-    yearEnd_dt = pd.to_datetime("%4d-12-31" % df.index[0].year, format="%Y-%m-%d")
-    
-    # Make a blank DataFrame for this row (which will hold the MOD for this year for
-    # each pixel)
-    myYearMOD = pd.DataFrame(index = [yearEnd_dt], columns=df.columns)
+
+    # The index (row label) of the output frame will be the integer year
+    # Make a blank DataFrame for this row
+    # The row hold the MOD for this year for each pixel
+    myYearMOD = pd.DataFrame(index = [df.index[0].year], 
+                             columns=df.columns).rename_axis(index='Year')
 
     # Treat each column of data as a separate entity
     # and look for the the first row with non-NaN entry
@@ -88,6 +89,7 @@ def DAV_MOD(DAV_threshold, Tb_threshold, count, window,
                 columns=["%d,%d" % (i, j)])
             matrix = pd.concat([matrix,column], axis=1)
     
+    matrix.rename_axis(columns="Row,Col", inplace=True)
     matrix['date'] = np.array(cal_date)
     matrix.set_index('date', inplace=True)
     
@@ -108,7 +110,8 @@ def DAV_MOD(DAV_threshold, Tb_threshold, count, window,
     # group the dataframe by year, then get the MOD for each pixel by year
     grouped = matrix.groupby(pd.Grouper(freq='A'))
     MOD_df = grouped.apply(findMOD)
-    MOD_df.index = MOD_df.index.droplevel()
+    
+    MOD_df.index = MOD_df.index.droplevel('date')
     
     # returns two dataframes:
     # MOD_df:
