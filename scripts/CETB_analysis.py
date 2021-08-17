@@ -220,9 +220,8 @@ def MOD_array(datadir, prefix, CETB_data, DAV,
             print("Next d = %d" % d)
         newdata[d,] = flag[d, :, :].flatten()
     
-    pdb.set_trace()
     matrix = pd.DataFrame(data=newdata, columns=col_names)
-    matrix=matrix.set_index(cal_date)
+    matrix.set_index(pd.Index(cal_date), inplace=True)
 
     print("dataFrame is ready with flag data")
     print("doing rolling sums...")
@@ -236,76 +235,38 @@ def MOD_array(datadir, prefix, CETB_data, DAV,
 
     # gets a dataframe with one row for each pixel,
     # one column for each year, MOD in DOY in each cell for that pixel and year
-    new_frame=pd.DataFrame()
+    df = pd.DataFrame()
     num_pixels = len(matrix.columns)
 
     for year in Years:
         print("Next year = %d..." % year)
-        dates=np.zeros((num_pixels), dtype='datetime64[h]')
+        dates = np.zeros((num_pixels), dtype='datetime64[h]')
         for column_index, column in enumerate(matrix.columns):
             dates[column_index] = matrix[str(year)][column].first_valid_index()
 
-        dates_series=pd.Series(dates)
-        dates_series=dates_series.dt.dayofyear
-        new_frame=pd.concat([new_frame,dates_series], axis=1)
+        dates_series = pd.Series(dates)
+        dates_series = dates_series.dt.dayofyear
+        df = pd.concat([df, dates_series], axis=1)
 
-    new_frame.columns=[Years]
-    print("MOD by pixel and year:")
-    print(new_frame)
-
+    
+    
+    df.columns = Years
+    df.set_index(matrix.columns, inplace=True)
+    df.index.name = '(row,col)'
+    
     # get the average MOD for each pixel and make it an array for plotting
-    MOD=new_frame.mean(axis=1).values
-    MOD=np.ma.array(MOD)   # make it masked array
-    MOD[MOD<0]=np.ma.masked   #convert any invalid MODs to masked
+    MOD = df.mean(axis=1).values
+    MOD = np.ma.array(MOD)   # make it masked array
+    MOD[MOD < 0] = np.ma.masked   #convert any invalid MODs to masked
+    
+    # Store the Avg MOD for these years as the last column in the data frame
+    df['Avg'] = MOD
 
-    return MOD, new_frame
+    return MOD, df
 
 # plot map of average MOD for year of interest
-def MOD_array_year(datadir, prefix, CETB_data, DAV,
-                   rows_cols, cal_date, year, window, count,
-                   DAV_threshold, Tb_threshold):
-
-    # Find times/places when melt conditions are satisfied
-    melt_condition_met = (DAV>DAV_threshold) & (CETB_data[:,:,:]>Tb_threshold)
-    flag = melt_condition_met.astype(int)
-
-    # Prepare a DataFrame to do the heavy-lifting on the algorithm:
-    # Define a list of column_names with one for each array row, col
-    # Populate each row with the flattened data for that date
-    col_names = ["%s,%s" % (str(y),str(x))
-        for y in np.arange(rows_cols[0], rows_cols[1])
-        for x in np.arange(rows_cols[2], rows_cols[3])]
-    newdata = np.zeros([flag.shape[0],
-                        flag.shape[1] * flag.shape[2]], dtype=flag.dtype)
-    for d in np.arange(flag.shape[0]):
-        newdata[d,] = flag[d, :, :].flatten()
-    matrix = pd.DataFrame(data=newdata, columns=col_names)
-    matrix=matrix.set_index(cal_date)
-
-    # MOD algorithm - calculate sum on a rolling window
-    # (window= no. of obs, 2 per day)
-    matrix=matrix.rolling(window).sum()
-    matrix=matrix[matrix>=count]  # count= no. times thresholds are tripped for alg
-    matrix=matrix.dropna(axis=0, how='all') # drop rows with all NaN
-
-    # gets a dataframe with one row for each pixel,
-    # one column for each year, MOD in DOY in each cell for that pixel and year
-    new_frame=pd.DataFrame()
-    num_pixels = len(matrix.columns)
-
-    dates=np.zeros((num_pixels), dtype='datetime64[h]')
-    for column_index, column in enumerate(matrix.columns):
-        dates[column_index] = matrix[str(year)][column].first_valid_index()
-
-    dates_series=pd.Series(dates)
-    dates_series=dates_series.dt.dayofyear
-    new_frame=pd.concat([new_frame,dates_series], axis=1)
-
-    new_frame.columns=[str(year)]
-
-    # get the average MOD for each pixel and make it an array for plotting
-    MOD=new_frame.mean(axis=1).values
-    MOD=np.ma.array(MOD)   # make it masked array
-    MOD[MOD<0]=np.ma.masked   #convert any invalid MODs to masked
-
-    return MOD
+#def MOD_array_year(datadir, prefix, CETB_data, DAV,
+#                   rows_cols, cal_date, year, window, count,
+#                   DAV_threshold, Tb_threshold)
+# THIS FUNCTION IS OBSOLETE, do the call to MOD_array and
+# and then get the year that you are interested in from the output
