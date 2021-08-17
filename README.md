@@ -72,13 +72,18 @@ should return:
 # conda environments:
 base                 * C:<your home directory>\miniconda3
 
-Now create a new environment that we will use for our project:
+Now install a package called mamba in the base environment that
+will speed up a lot of the rest of the process:
 
-conda create -n cetb python~=3.7 cetbtools jupyter basemap seaborn
+conda install mamba
+
+Now use mamba to create a new environment that we will use for our project:
+
+mamba create -n cetb python~=3.7 cetbtools matplotlib scipy jupyter basemap seaborn
 
 To get a very specific cetbtools:
 
-conda create -n cetbTest python~=3.7 cetbtools==1.6.0.rc2 jupyter basemap seaborn
+mamba create -n cetbTest python~=3.7 cetbtools==1.6.0.rc2 matplotlib scipy jupyter basemap seaborn
 
 N.B.:
 1) jupyter is needed for running jupyter notebooks
@@ -86,6 +91,8 @@ N.B.:
 better than matplotlib
 3) basemap is needed for some of the displays and maps that we are
 displaying in the notebooks.
+
+N.B.: confirm that matplotlib and scipy are both coming from conda-forge?
 
 If you run "conda env list" again will will see a second entry,
 for cetb. The asterisk will be positioned in the environment that is
