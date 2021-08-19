@@ -566,3 +566,55 @@ def read_esri_ascii(asc_file, grid=None, reshape=False, name=None, halo=0):
 
     return (grid, data)
 
+def years_for(platform):
+    """Returns years (and partial years) of operation for passive microwave platform being processed
+
+    years corresponding to platform are returned as an array of integers
+    
+    Parameters
+    ----------
+    platform : str of platform ID
+       for example 'F11' or 'AQUA'
+        
+    Returns
+    -------
+    [year, year, year]
+                
+    Raises
+    ------
+    NA
+        
+    Examples
+    --------
+    
+    """
+    if platform=='F8': #F8 SSMI dates Sept. 7, 1987-Dec 30, 1991
+        Years = [1987,1988,1989,1990,1991]
+    #skip F10; relatively elliptical orbit
+    elif platform=='F11': #F11 SSMI dates XXXXX
+        Years = [1995,1996,1997,1998,1999,2000,2001,2002,2003, 2004,2005,2006,2007,2008,2009]
+    elif platform=='F13' : #F13 SSMI dates May 3,1995-Nov 19,2009
+        Years = [1995,1996,1997,1998,1999,2000,2001,2002,2003, 2004,2005,2006,2007,2008,2009]
+    elif platform=='F14': #F14 SSMI dates May 7, 1997 - Aug 23, 2008
+        Years=[1997,1998,1999,2000,2001,2002,2003,2004,2005,2006,2007,2008]
+    elif platform=='F15': #F15 SSMI dates Feb 23, 2000 - Dec 31 2019
+        Years=[2000,2001,2002,2003,2004,2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019]
+    elif platform=='F16': #F16 SSMIS dates Nov. 1 2005 - Dec 31 2019
+        Years=[2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,2018,2019] 
+    elif platform=='F17': #F17 SSMIS dates
+        Years=[2010,2011,2012,2013,2014,2015,2016,2017,2018,2019] 
+    elif platform=='F18': #F18 SSMIS dates
+        Years=[2010,2011,2012,2013,2014,2015,2016,2017,2018,2019]  
+    elif platform=='F18': #F18 SSMIS dates
+        Years=[2010,2011,2012,2013,2014,2015,2016,2017,2018,2019]  
+    #not including F19 (short time series)
+    elif platform=='AQUA':
+        Years=[2003,2004,2005,2006,2007,2008,2009,2010,2011]
+    else: 
+        raise IOError ('unrecognized platform')
+
+    return (Years)
+
+
+
+
