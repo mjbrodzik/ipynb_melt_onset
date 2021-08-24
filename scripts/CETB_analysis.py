@@ -196,11 +196,10 @@ def MOD_array(datadir, prefix, CETB_data, DAV,
               rows_cols, cal_date, Years, window, count,
               DAV_threshold, Tb_threshold):
 
+
     # Find times/places when melt conditions are satisfied
     melt_condition_met = (DAV > DAV_threshold) & (CETB_data[:, :, :] > Tb_threshold)
     flag = melt_condition_met.astype(int)
-
-    
     
     # Prepare a DataFrame to do the heavy-lifting on the algorithm:
     # Define a list of column_names with one for each array row, col
@@ -223,13 +222,16 @@ def MOD_array(datadir, prefix, CETB_data, DAV,
     matrix = pd.DataFrame(data=newdata, columns=col_names)
     matrix.set_index(pd.Index(cal_date), inplace=True)
 
+    meltflag_df=matrix.copy(deep=True)
+    
     print("dataFrame is ready with flag data")
     print("doing rolling sums...")
-
     # MOD algorithm - calculate sum on a rolling window
     # (window= no. of obs, 2 per day)
     matrix=matrix.rolling(window).sum()
+    
     # count= no. times thresholds are tripped for algo
+    
     matrix=matrix[matrix>=count]
     matrix=matrix.dropna(axis=0, how='all') # drop rows with all NaN
 
@@ -262,7 +264,7 @@ def MOD_array(datadir, prefix, CETB_data, DAV,
     # Store the Avg MOD for these years as the last column in the data frame
     df['Avg'] = MOD
 
-    return MOD, df
+    return MOD, df, meltflag_df
 
 # plot map of average MOD for year of interest
 #def MOD_array_year(datadir, prefix, CETB_data, DAV,
