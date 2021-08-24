@@ -79,10 +79,25 @@ conda install mamba
 
 Now use mamba to create a new environment that we will use for our project:
 
+If you are on Windows:
+
+mamba create -n cetb python~=3.7 cetbtools matplotlib scipy jupyter basemap proj4 seaborn
+
+(Including proj4 corrects a problem with basemap 1.2 that doesn't properly
+set the PROJ_LIB env variable see this for grizzly details:
+
+https://stackoverflow.com/questions/52295117/basemap-import-error-in-pycharm-keyerror-proj-lib
+)
+
+If you are on Mac or linux:
+
 mamba create -n cetb python~=3.7 cetbtools matplotlib scipy jupyter basemap seaborn
 
 To get a very specific cetbtools:
 
+Windows:
+mamba create -n cetbTest python~=3.7 cetbtools==1.6.0.rc2 matplotlib scipy jupyter basemap proj4 seaborn
+Non-Windows:
 mamba create -n cetbTest python~=3.7 cetbtools==1.6.0.rc2 matplotlib scipy jupyter basemap seaborn
 
 N.B.:
