@@ -197,6 +197,11 @@ def MOD_array(datadir, prefix, CETB_data, DAV,
               DAV_threshold, Tb_threshold):
 
 
+    # Subset the input data arrays for only the subset
+    # that we are interested in
+    CETB_data = CETB_data[:, rows_cols[0]:rows_cols[1], rows_cols[2]:rows_cols[3]]
+    DAV = DAV[:, rows_cols[0]:rows_cols[1], rows_cols[2]:rows_cols[3]]
+    
     # Find times/places when melt conditions are satisfied
     melt_condition_met = (DAV > DAV_threshold) & (CETB_data[:, :, :] > Tb_threshold)
     flag = melt_condition_met.astype(int)
@@ -240,17 +245,33 @@ def MOD_array(datadir, prefix, CETB_data, DAV,
     df = pd.DataFrame()
     num_pixels = len(matrix.columns)
 
+    # Find the first value date for each year in each column
+    # It's possible that no melt condition is met for a given year/column
+    # but this shows up in different ways:
+    # When matrix contains data for some years, but no data for a given year,
+    # first_valid_index returns a KeyError
+    # When matrix[year][column] is empty, first_valid_index returns None
     for year in Years:
         print("Next year = %d..." % year)
-        dates = np.zeros((num_pixels), dtype='datetime64[h]')
+        #dates = np.zeros((num_pixels), dtype='datetime64[h]')
+        dates = np.full(num_pixels, pd.NaT)
         for column_index, column in enumerate(matrix.columns):
-            dates[column_index] = matrix[str(year)][column].first_valid_index()
+            try:
+                first_date = matrix[str(year)][column].first_valid_index()
+            except KeyError:
+                print("MOD_array: no melt found for pixel %s in year %d" % (
+                    column, year))
+                continue
 
+            if first_date is not None:
+                dates[column_index] = first_date
+            else:
+                print("MOD_array: no melt found for pixel %s in year %d" % (
+                    column, year))
+                
         dates_series = pd.Series(dates)
         dates_series = dates_series.dt.dayofyear
         df = pd.concat([df, dates_series], axis=1)
-
-    
     
     df.columns = Years
     df.set_index(matrix.columns, inplace=True)
