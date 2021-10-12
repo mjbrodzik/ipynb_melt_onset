@@ -5,6 +5,7 @@ import pandas as pd
 from cetbtools.ease2conv import Ease2Transform
 import warnings
 import glob
+import pdb; # insert at places for breakpoints: pdb.set_trace()
 
 # getting a runtimewarning when using operators
 # on numpy arrays with lots of NaNs, functions still perform,
@@ -211,12 +212,17 @@ def read_Tb_all(datadir, prefix, Years):
 # read in Tb standard deviation data
 def read_Tb_std_dev(datadir, prefix, Years,y_start,y_end,x_start,x_end):
     for year in Years:
-
         # Create filename
-        filename=datadir+prefix+'.'+str(year)+'.TB_std_dev.nc'
-        list=glob.glob(filename)
+        cubePattern = "%s/%s.%4d.TB_std_dev.nc" % (datadir, prefix, year)
+        list = glob.glob(cubePattern)
+        if not list:
+            raise IOError("No cubefile found to match the pattern = %s" % (cubePattern))
+        else:
+            filename = list[-1]
+            print("Next filename=%s..." % filename)
+        
         # load the raw data in
-        rawdata = Dataset(list[-1], "r", format="NETCDF4")
+        rawdata = Dataset(filename, "r", format="NETCDF4")
                 
         # Compile the CETB data, the TB variable is saved as (time, y, x) - 
         subset = rawdata.variables['TB_std_dev'][0:,y_start:y_end,x_start:x_end]

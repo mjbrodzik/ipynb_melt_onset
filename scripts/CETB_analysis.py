@@ -196,12 +196,7 @@ def MOD_array(datadir, prefix, CETB_data, DAV,
               rows_cols, cal_date, Years, window, count,
               DAV_threshold, Tb_threshold):
 
-
-    # Subset the input data arrays for only the subset
-    # that we are interested in
-    CETB_data = CETB_data[:, rows_cols[0]:rows_cols[1], rows_cols[2]:rows_cols[3]]
-    DAV = DAV[:, rows_cols[0]:rows_cols[1], rows_cols[2]:rows_cols[3]]
-    
+ 
     # Find times/places when melt conditions are satisfied
     melt_condition_met = (DAV > DAV_threshold) & (CETB_data[:, :, :] > Tb_threshold)
     flag = melt_condition_met.astype(int)
