@@ -184,11 +184,7 @@ def min_max_series(CETB_GRD, CETB_SIR, cal_date, cal_year, year, title):
     # hist of min/max/mean of the 3 km pixels in subset and the 25km (GRD) pixel that envelopes them
     frame=pd.DataFrame(data={'min':totalmin, 'max':totalmax, 'avg':totalmean, 'GRD':total_GRD}, index=cal_date)
 
-    frame.plot.hist(alpha=0.8, bins=100, histtype='step', ylim=[0,300], xlim=[150,320], title=title)
-
-    # plot time series of min/max/mean of the 3 km pixels in subset and the 25km (GRD) pixel that envelopes them    
-    frame.plot(xlim=[str(year)+'-01-01',str(year)+'-12-31'], ylim=[150,320], title=title)
-    return
+    return frame
 
 
 # plot map of average MOD for period of record
