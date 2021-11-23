@@ -85,10 +85,15 @@ def TbDAV_series_one_year(CETB_data, DAV, cal_date, cal_year, year, Tb_threshold
     fig, (ax1, ax2) = plt.subplots(2,1, sharex=True)  #create two subplots with a shared x-axis
     y_dims_list=list(range(len(CETB_data[0,:,0])))  # creates a list of the y-dimension pixel indices, used for plotting
     x_dims_list=list(range(len(CETB_data[0,0,:])))    # creates a list of the x-dimension pixel indices, for plotting
+    
+    thisYr = cal_year==year
+    
     for i in y_dims_list:  #plot the time-series
         for j in x_dims_list:
-            ax1.plot(cal_date[cal_year==year], CETB_data[cal_year==year,i,j])
-            ax2.plot(cal_date[cal_year==year], DAV[cal_year==year,i,j])
+            CETB_df = pd.DataFrame(CETB_data[thisYr, i, j], index=cal_date[thisYr])
+            CETB_df.plot(ax=ax1, legend=False)
+            DAV_df = pd.DataFrame(DAV[thisYr, i, j], index=cal_date[thisYr])
+            DAV_df.plot(ax=ax2, legend=False)
 
     ax1.set_ylabel('Tb (K)')
     ax2.set_ylabel('DAV (K)')
@@ -248,7 +253,7 @@ def MOD_array(datadir, prefix, CETB_data, DAV,
         dates = np.full(num_pixels, pd.NaT)
         for column_index, column in enumerate(matrix.columns):
             try:
-                first_date = matrix[str(year)][column].first_valid_index()
+                first_date = matrix.loc[str(year)][column].first_valid_index()
             except KeyError:
                 print("MOD_array: no melt found for pixel %s in year %d" % (
                     column, year))
