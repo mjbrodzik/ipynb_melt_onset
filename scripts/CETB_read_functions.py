@@ -148,7 +148,7 @@ def read_Tb_whole(datadir, prefix, Years,
         cal_month[n]=cal_date[n].month
         
     # Convert cal_dates masked array to pd.datetime format
-    cal_date = [ pd.to_datetime(i.strftime("%m/%d/%Y, %H:%M:%S")) for i in cal_date.data ]
+    cal_date = np.array([ pd.to_datetime(i.strftime("%m/%d/%Y, %H:%M:%S")) for i in cal_date.data ])
 
     return {'TB': CETB_data,
             'cal_date': cal_date,
