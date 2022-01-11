@@ -85,10 +85,15 @@ def TbDAV_series_one_year(CETB_data, DAV, cal_date, cal_year, year, Tb_threshold
     fig, (ax1, ax2) = plt.subplots(2,1, sharex=True)  #create two subplots with a shared x-axis
     y_dims_list=list(range(len(CETB_data[0,:,0])))  # creates a list of the y-dimension pixel indices, used for plotting
     x_dims_list=list(range(len(CETB_data[0,0,:])))    # creates a list of the x-dimension pixel indices, for plotting
+    
+    thisYr = cal_year==year
+    
     for i in y_dims_list:  #plot the time-series
         for j in x_dims_list:
-            ax1.plot(cal_date[cal_year==year], CETB_data[cal_year==year,i,j])
-            ax2.plot(cal_date[cal_year==year], DAV[cal_year==year,i,j])
+            CETB_df = pd.DataFrame(CETB_data[thisYr, i, j], index=cal_date[thisYr])
+            CETB_df.plot(ax=ax1, legend=False)
+            DAV_df = pd.DataFrame(DAV[thisYr, i, j], index=cal_date[thisYr])
+            DAV_df.plot(ax=ax2, legend=False)
 
     ax1.set_ylabel('Tb (K)')
     ax2.set_ylabel('DAV (K)')
@@ -184,11 +189,7 @@ def min_max_series(CETB_GRD, CETB_SIR, cal_date, cal_year, year, title):
     # hist of min/max/mean of the 3 km pixels in subset and the 25km (GRD) pixel that envelopes them
     frame=pd.DataFrame(data={'min':totalmin, 'max':totalmax, 'avg':totalmean, 'GRD':total_GRD}, index=cal_date)
 
-    frame.plot.hist(alpha=0.8, bins=100, histtype='step', ylim=[0,300], xlim=[150,320], title=title)
-
-    # plot time series of min/max/mean of the 3 km pixels in subset and the 25km (GRD) pixel that envelopes them    
-    frame.plot(xlim=[str(year)+'-01-01',str(year)+'-12-31'], ylim=[150,320], title=title)
-    return
+    return frame
 
 
 # plot map of average MOD for period of record
@@ -196,11 +197,10 @@ def MOD_array(datadir, prefix, CETB_data, DAV,
               rows_cols, cal_date, Years, window, count,
               DAV_threshold, Tb_threshold):
 
+ 
     # Find times/places when melt conditions are satisfied
     melt_condition_met = (DAV > DAV_threshold) & (CETB_data[:, :, :] > Tb_threshold)
     flag = melt_condition_met.astype(int)
-
-    
     
     # Prepare a DataFrame to do the heavy-lifting on the algorithm:
     # Define a list of column_names with one for each array row, col
@@ -223,13 +223,16 @@ def MOD_array(datadir, prefix, CETB_data, DAV,
     matrix = pd.DataFrame(data=newdata, columns=col_names)
     matrix.set_index(pd.Index(cal_date), inplace=True)
 
+    meltflag_df=matrix.copy(deep=True)
+    
     print("dataFrame is ready with flag data")
     print("doing rolling sums...")
-
     # MOD algorithm - calculate sum on a rolling window
     # (window= no. of obs, 2 per day)
     matrix=matrix.rolling(window).sum()
+    
     # count= no. times thresholds are tripped for algo
+    
     matrix=matrix[matrix>=count]
     matrix=matrix.dropna(axis=0, how='all') # drop rows with all NaN
 
@@ -238,17 +241,33 @@ def MOD_array(datadir, prefix, CETB_data, DAV,
     df = pd.DataFrame()
     num_pixels = len(matrix.columns)
 
+    # Find the first value date for each year in each column
+    # It's possible that no melt condition is met for a given year/column
+    # but this shows up in different ways:
+    # When matrix contains data for some years, but no data for a given year,
+    # first_valid_index returns a KeyError
+    # When matrix[year][column] is empty, first_valid_index returns None
     for year in Years:
         print("Next year = %d..." % year)
-        dates = np.zeros((num_pixels), dtype='datetime64[h]')
+        #dates = np.zeros((num_pixels), dtype='datetime64[h]')
+        dates = np.full(num_pixels, pd.NaT)
         for column_index, column in enumerate(matrix.columns):
-            dates[column_index] = matrix[str(year)][column].first_valid_index()
+            try:
+                first_date = matrix.loc[str(year)][column].first_valid_index()
+            except KeyError:
+                print("MOD_array: no melt found for pixel %s in year %d" % (
+                    column, year))
+                continue
 
+            if first_date is not None:
+                dates[column_index] = first_date
+            else:
+                print("MOD_array: no melt found for pixel %s in year %d" % (
+                    column, year))
+                
         dates_series = pd.Series(dates)
         dates_series = dates_series.dt.dayofyear
         df = pd.concat([df, dates_series], axis=1)
-
-    
     
     df.columns = Years
     df.set_index(matrix.columns, inplace=True)
@@ -262,7 +281,7 @@ def MOD_array(datadir, prefix, CETB_data, DAV,
     # Store the Avg MOD for these years as the last column in the data frame
     df['Avg'] = MOD
 
-    return MOD, df
+    return MOD, df, meltflag_df
 
 # plot map of average MOD for year of interest
 #def MOD_array_year(datadir, prefix, CETB_data, DAV,

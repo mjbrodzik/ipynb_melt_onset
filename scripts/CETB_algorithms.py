@@ -163,19 +163,21 @@ def D_DAV(CETB_data, cal_date, cal_year, Years, rows_cols):
 	return DAV_monthly
 
 # winter DAV (Jan-Feb)
-def Winter_DAV(CETB_data, cal_date, cal_year, Years, rows_cols):
-	y_s=list(range(rows_cols[0],rows_cols[1]))
-	x_s=list(range(rows_cols[2],rows_cols[3]))
-	y_dims_list=list(range(len(CETB_data[0,:,0])))
-	x_dims_list=list(range(len(CETB_data[0,0,:])))
 
-	matrix=pd.DataFrame()
+def Winter_DAV(CETB_data, cal_date, cal_year, Years, rows_cols):
 	# this for loop creates a dataframe with time series of Tb for each pixel	
-	for i in y_dims_list:
-		for j in x_dims_list:
-        		column=pd.DataFrame(data=CETB_data[:,i,j], columns=[str(y_s[i])+','+str(x_s[j])])
-        		matrix=pd.concat([matrix,column],axis=1)
-	matrix=matrix.set_index(cal_date)
+	matrix=pd.DataFrame()
+	for i in np.arange(rows_cols[0], rows_cols[1]):
+		for j in np.arange(rows_cols[2], rows_cols[3]):
+			column = pd.DataFrame(
+				data=CETB_data[:, i-rows_cols[0], j-rows_cols[2]], 
+				columns=["%d,%d" % (i, j)])
+			matrix = pd.concat([matrix,column], axis=1)
+	
+	matrix.rename_axis(columns="Row,Col", inplace=True)
+	matrix['date'] = np.array(cal_date)
+	matrix.set_index('date', inplace=True)
+	  
 	DAVpd=matrix.diff()  #take running difference to get DAV
 	DAVpd=DAVpd.abs()  #absolute value
 	DAV_monthly=DAVpd.groupby(pd.Grouper(freq='M')).mean()  #group by month and get average for each month
@@ -185,7 +187,7 @@ def Winter_DAV(CETB_data, cal_date, cal_year, Years, rows_cols):
 	DAV_monthly=DAV_monthly.set_index([Years])
 	
 	return DAV_monthly
-
+	
 #End of High DAV period, gets the last day where DAV threshold and Tb threshold are both exceeded - IN PROGRESS
 def end_high_DAV(DAV_threshold, Tb_threshold, count, window, DAV, CETB_data, Years, cal_year, cal_date, rows_cols):
 	y_s=list(range(rows_cols[0],rows_cols[1]))
