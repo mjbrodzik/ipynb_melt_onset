@@ -288,25 +288,34 @@ def MOD_array(datadir, prefix, CETB, DAV, rows_cols, Years, window, count,
         df = pd.concat([df, dates_series], axis=1)
     
     df.columns = Years
-    df['pixel'] = matrix.columns
 
-    # Insert columns with subset pixel geolocations x, y, lat, lon, row, col
-    num_rows = len(df.index)
-    df['Latitude'] = np.reshape(CETB['latitude'], num_rows)
-    df['Longitude'] = np.reshape(CETB['longitude'], num_rows)
-    #df['x'] = np.reshape(CETB['latitude'], num_rows)
-    #df['y'] = np.reshape(CETB['longitude'], num_rows)
-    df["Row"] = df["Column"] = ""
-    df[["Row", "Column"]] = list(df.pixel.apply(parse_row_col))
-    
     # get the average MOD for each pixel and make it an array for plotting
+    print("Getting average MOD at each pixel...")
     MOD = df.mean(axis=1).values
     MOD = np.ma.array(MOD)   # make it masked array
     MOD[MOD < 0] = np.ma.masked   #convert any invalid MODs to masked
     
     # Store the Avg MOD for these years as the last column in the data frame
     df['Avg'] = MOD
+    data_columns = df.columns
 
+    print("Setting geolocation information...")
+    df['pixel'] = matrix.columns
+
+    # Insert columns with subset pixel geolocations x, y, lat, lon, row, col
+    num_rows = len(df.index)
+    xx, yy = np.meshgrid(CETB['x'], CETB['y'])
+    df['x'] = np.reshape(xx, num_rows)
+    df['y'] = np.reshape(yy, num_rows)
+    df['latitude'] = np.reshape(CETB['latitude'], num_rows)
+    df['longitude'] = np.reshape(CETB['longitude'], num_rows)
+    df["row"] = df["column"] = ""
+    df[["row", "column"]] = list(df.pixel.apply(parse_row_col))
+
+    # Put the geolocation fields at the beginning of the columns
+    geo_columns = df.columns[-7:]
+    df = df[geo_columns.append(data_columns)]
+    
     return MOD, df, meltflag_df
 
 # plot map of average MOD for year of interest
