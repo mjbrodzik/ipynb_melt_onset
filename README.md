@@ -79,12 +79,15 @@ conda install mamba
 
 Now use mamba to create a new environment that we will use for our project:
 
-mamba create -n cetb python~=3.7 cetbtools scipy jupyter basemap seaborn
+mamba create -n cetb python~=3.7 cetbtools matplotlib scipy jupyter basemap seaborn
 
 This should get cetbtools 1.6.1--this is the latest as of fall 2021.
 
 To get a very specific cetbtools:
 
+Windows:
+mamba create -n cetbTest python~=3.7 cetbtools==1.6.0.rc2 matplotlib scipy jupyter basemap proj4 seaborn
+Non-Windows:
 mamba create -n cetbTest python~=3.7 cetbtools==1.6.0.rc2 matplotlib scipy jupyter basemap seaborn
 
 N.B.:
