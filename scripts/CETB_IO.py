@@ -599,7 +599,9 @@ def write_MOD_df_column_to_geotiff(df, column, grid, outbasename,
         print("\n%s geotiff image saved to: %s" %                                          
               (str(column), outfilename))
 
-    return outfilename
+    return {'filename': outfilename,
+            'geotransform': geotransform,
+            'data': data}
 
 
 # write_MOD_df_to_geotiff
@@ -627,17 +629,17 @@ def write_MOD_df_to_geotiff(df, gpd, outbasename, verbose=False):
                             'row', 'column',
                             'x', 'y'])
 
-    files = []
+    out = {}
     for col in columns:
 
         dtype = 'int16'
         if 'Avg' == col:
             dtype = 'float32'
-        outfilename = write_MOD_df_column_to_geotiff(
+        thisOut = write_MOD_df_column_to_geotiff(
             df, col, grid, outbasename, dtype=dtype, verbose=verbose)
-        files.append(outfilename)
+        out[col] = thisOut
 
-    return files
+    return out
 
 
 # ###################################################################
@@ -792,6 +794,32 @@ def grid_locations_of_subset(subsetName, lat, lon, cubeDir=None):
         cols[2], rows[2]))
     
     return (rows, cols)
+
+
+# get_nearest_ease2_coordinates(grid, lat, lon)
+# Input:
+#   grid: Ease2Transform for the EASE-Grid 2.0 grid
+#   lat/lon: latitude/longitude of a point
+# Output:
+#   Dictionary with row/col and x/y of nearest grid pixel to
+#   lat/lon
+def get_nearest_ease2_coordinates(grid, lat, lon):
+
+    # Get the row/col - these are real-valued (exact location)
+    row, col = grid.geographic_to_grid(lat, lon)
+
+    # Round the row/col coordinates to the nearest integer
+    # this will be location of the center of the nearest cell
+    row = int(row)
+    col = int(col)
+
+    # Get projected x, y of the center of the nearest cell
+    x, y = grid.grid_to_map(row, col)
+
+    return {'row': row,
+            'col': col,
+            'x': x,
+            'y': y}
 
 
 # get_extent_xy(x, y)
