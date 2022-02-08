@@ -1,6 +1,4 @@
 ### CETB_analysis.py
-### last edited: 5/20/18
-### by: Mitch Johnson
 ### functions for analysis of CETB data, creates histograms and time series plots of Tb and DAV
 
 from netCDF4 import Dataset, num2date
@@ -122,6 +120,19 @@ def DAV_MOD(DAV_threshold, Tb_threshold, count, window,
     #    each row is 1 if melt conditions are met on this date, 0 otherwis
     # return MOD_df, melt_flag_df
     return MOD_df, melt_flag_df
+
+
+def calc_DAV(CETB_data):
+
+    # function takes the CETB_data that was read in read_Tb()
+    # and returns the absolute value of the DAV         
+    DAV=np.diff(CETB_data,n=1,axis=0)
+    DAV_abs=np.absolute(DAV)
+
+    # insert a 0 at beginning of array so same length as CETB_data for plotting together    
+    DAV_abs=np.insert(DAV_abs, [0],[0], axis=0)
+
+    return DAV_abs
 
 
 # cross-polarized gradient ratio (XPGR) melt algorithm from Abdalati and Steffen, 1995.  

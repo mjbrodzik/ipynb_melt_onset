@@ -71,6 +71,9 @@ def read_Tb(datadir, prefix, Years,y_start,y_end,x_start,x_end):
 # this is a more versatile version of read_Tb and should eventually
 # replace it
 # prefix can be a filename glob pattern
+# Returns:
+#   dict with fields for subsetted TB and geolocation information
+#   read from the cube
 def read_Tb_whole(datadir, prefix, Years,
                   y_start=None, y_end=None, x_start=None, x_end=None):
 
@@ -125,13 +128,23 @@ def read_Tb_whole(datadir, prefix, Years,
         CETB_data[CETB_data==0] = np.NaN
 
         # First time through,
-        # Fetch the x, y coordinates of the cube (not just the subset)
+        # Fetch the gpd, (x, y) and (lat, lon) coordinates
+        # of the subset of the cube
         if year == Years[0]:
-            x = rawdata.variables['x'][:]
-            y = rawdata.variables['y'][:]
-            latitude = rawdata.variables['latitude'][:]
-            longitude = rawdata.variables['longitude'][:]
+
             gpd = rawdata.variables['crs'].long_name
+            if get_full_cube:
+                x = rawdata.variables['x'][:]
+                y = rawdata.variables['y'][:]
+                latitude = rawdata.variables['latitude'][:]
+                longitude = rawdata.variables['longitude'][:]
+            else:
+                x = rawdata.variables['x'][x_start:x_end]
+                y = rawdata.variables['y'][y_start:y_end]
+                latitude = rawdata.variables['latitude'][
+                    y_start:y_end,x_start:x_end]
+                longitude = rawdata.variables['longitude'][
+                    y_start:y_end,x_start:x_end]
 
         # Close the file
         rawdata.close()
@@ -148,7 +161,8 @@ def read_Tb_whole(datadir, prefix, Years,
         cal_month[n]=cal_date[n].month
         
     # Convert cal_dates masked array to pd.datetime format
-    cal_date = np.array([ pd.to_datetime(i.strftime("%m/%d/%Y, %H:%M:%S")) for i in cal_date.data ])
+    cal_date = np.array([
+        pd.to_datetime(i.strftime("%m/%d/%Y, %H:%M:%S")) for i in cal_date.data ])
 
     return {'TB': CETB_data,
             'cal_date': cal_date,

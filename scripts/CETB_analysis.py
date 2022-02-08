@@ -192,14 +192,31 @@ def min_max_series(CETB_GRD, CETB_SIR, cal_date, cal_year, year, title):
     return frame
 
 
+# Helper function to parse "row,col" strings
+def parse_row_col(s):
+    return [int(str) for str in s.split(',')]
+
+
 # plot map of average MOD for period of record
-def MOD_array(datadir, prefix, CETB_data, DAV,
-              rows_cols, cal_date, Years, window, count,
+# Inputs:
+#   datadir: top directory location with cube data
+#   prefix:
+#   CETB: dictionary with data read using read_Tb_whole
+#         dict fields are expected for TB, latitude, longitude, gpd
+#   DAV: DAV as calculated by calc_DAV, dimensions must match data['TB']
+#   rows_cols: 4-element tuple with (row_begin, row_end, col_begin, col_end)
+#         of the subset to read from the cube
+#   Years: list of years to process
+#   window: window for algorithm, 10 would be 5 days (assumes 2 measurements/day)
+#   count: number of TB/DAV exceedances to trigger melt onset
+#   DAV_threshold:
+#   Tb_threshold:
+def MOD_array(datadir, prefix, CETB, DAV, rows_cols, Years, window, count,
               DAV_threshold, Tb_threshold):
 
- 
     # Find times/places when melt conditions are satisfied
-    melt_condition_met = (DAV > DAV_threshold) & (CETB_data[:, :, :] > Tb_threshold)
+    melt_condition_met = (
+        DAV > DAV_threshold) & (CETB['TB'][:, :, :] > Tb_threshold)
     flag = melt_condition_met.astype(int)
     
     # Prepare a DataFrame to do the heavy-lifting on the algorithm:
@@ -208,7 +225,8 @@ def MOD_array(datadir, prefix, CETB_data, DAV,
     col_names = ["%s,%s" % (str(y),str(x)) 
                  for y in np.arange(rows_cols[0], rows_cols[1])
                  for x in np.arange(rows_cols[2], rows_cols[3])]
-        
+
+    # newdata: rows are dates, columns are pixels
     newdata = np.zeros([flag.shape[0],
                         flag.shape[1] * flag.shape[2]], dtype=flag.dtype)
     print("newdata.shape %s" % str(newdata.shape))
@@ -221,7 +239,7 @@ def MOD_array(datadir, prefix, CETB_data, DAV,
         newdata[d,] = flag[d, :, :].flatten()
     
     matrix = pd.DataFrame(data=newdata, columns=col_names)
-    matrix.set_index(pd.Index(cal_date), inplace=True)
+    matrix.set_index(pd.Index(CETB['cal_date']), inplace=True)
 
     meltflag_df=matrix.copy(deep=True)
     
@@ -232,12 +250,13 @@ def MOD_array(datadir, prefix, CETB_data, DAV,
     matrix=matrix.rolling(window).sum()
     
     # count= no. times thresholds are tripped for algo
-    
     matrix=matrix[matrix>=count]
-    matrix=matrix.dropna(axis=0, how='all') # drop rows with all NaN
+    # drop rows (dates) with all pixels NaN
+    matrix=matrix.dropna(axis=0, how='all') 
 
     # gets a dataframe with one row for each pixel,
-    # one column for each year, MOD in DOY in each cell for that pixel and year
+    # one column for each year,
+    # MOD in DOY in each cell for that pixel and year
     df = pd.DataFrame()
     num_pixels = len(matrix.columns)
 
@@ -249,7 +268,6 @@ def MOD_array(datadir, prefix, CETB_data, DAV,
     # When matrix[year][column] is empty, first_valid_index returns None
     for year in Years:
         print("Next year = %d..." % year)
-        #dates = np.zeros((num_pixels), dtype='datetime64[h]')
         dates = np.full(num_pixels, pd.NaT)
         for column_index, column in enumerate(matrix.columns):
             try:
@@ -270,17 +288,34 @@ def MOD_array(datadir, prefix, CETB_data, DAV,
         df = pd.concat([df, dates_series], axis=1)
     
     df.columns = Years
-    df.set_index(matrix.columns, inplace=True)
-    df.index.name = '(row,col)'
-    
+
     # get the average MOD for each pixel and make it an array for plotting
+    print("Getting average MOD at each pixel...")
     MOD = df.mean(axis=1).values
     MOD = np.ma.array(MOD)   # make it masked array
     MOD[MOD < 0] = np.ma.masked   #convert any invalid MODs to masked
     
     # Store the Avg MOD for these years as the last column in the data frame
     df['Avg'] = MOD
+    data_columns = df.columns
 
+    print("Setting geolocation information...")
+    df['pixel'] = matrix.columns
+
+    # Insert columns with subset pixel geolocations x, y, lat, lon, row, col
+    num_rows = len(df.index)
+    xx, yy = np.meshgrid(CETB['x'], CETB['y'])
+    df['x'] = np.reshape(xx, num_rows)
+    df['y'] = np.reshape(yy, num_rows)
+    df['latitude'] = np.reshape(CETB['latitude'], num_rows)
+    df['longitude'] = np.reshape(CETB['longitude'], num_rows)
+    df["row"] = df["column"] = ""
+    df[["row", "column"]] = list(df.pixel.apply(parse_row_col))
+
+    # Put the geolocation fields at the beginning of the columns
+    geo_columns = df.columns[-7:]
+    df = df[geo_columns.append(data_columns)]
+    
     return MOD, df, meltflag_df
 
 # plot map of average MOD for year of interest
