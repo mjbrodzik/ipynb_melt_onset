@@ -810,8 +810,8 @@ def get_nearest_ease2_coordinates(grid, lat, lon):
 
     # Round the row/col coordinates to the nearest integer
     # this will be location of the center of the nearest cell
-    row = int(row)
-    col = int(col)
+    row = int(row + 0.5)
+    col = int(col + 0.5)
 
     # Get projected x, y of the center of the nearest cell
     x, y = grid.grid_to_map(row, col)
