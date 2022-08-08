@@ -33,12 +33,13 @@ Check to make sure you have a latest conda installed with
 
 conda update -n base -c defaults conda
 
-As of 4/6/2021, the latest version of conda is 4.10.0.
-As of 7/13/2021, the latest version of conda is 4.10.3.
+As of 8/8/2022, the latest version of conda is 4.13.0.
 
-2. Get the miniconda shell window by doing:
+2.a. Windows: Get the miniconda shell window by doing:
 
 Windows menu > All Programs > Anaconda Prompt (miniconda3).
+
+2.b. non-Windows: Open a terminal on your machine.
 
 3. Set up the list of "channels," which are locations to look
 online for the packages we will need, and the priority order that
@@ -79,16 +80,18 @@ conda install mamba
 
 Now use mamba to create a new environment that we will use for our project:
 
-mamba create -n cetb python~=3.7 cetbtools matplotlib scipy jupyter basemap seaborn
+mamba create -n cetb cetbtools matplotlib scipy jupyter basemap seaborn
 
-This should get cetbtools 1.6.1--this is the latest as of fall 2021.
+This should get cetbtools 1.7.x--this is the latest as of August 2022.
 
-To get a very specific cetbtools:
+Optional, only if it's needed to get a very specific version of cetbtools:
 
 Windows:
-mamba create -n cetbTest python~=3.7 cetbtools==1.6.0.rc2 matplotlib scipy jupyter basemap proj4 seaborn
+mamba create -n cetbTest cetbtools==1.6.0.rc2 matplotlib scipy jupyter basemap proj4 seaborn
 Non-Windows:
-mamba create -n cetbTest python~=3.7 cetbtools==1.6.0.rc2 matplotlib scipy jupyter basemap seaborn
+mamba create -n cetbTest cetbtools==1.6.0.rc2 matplotlib scipy jupyter basemap seaborn
+
+as of August 2022, apparently mamba won't do the magic on OSX, use conda if working on a Mac.
 
 N.B.:
 1) jupyter is needed for running jupyter notebooks
@@ -97,7 +100,7 @@ better than matplotlib
 3) basemap is needed for some of the displays and maps that we are
 displaying in the notebooks.
 
-N.B.: confirm that matplotlib and scipy are both coming from conda-forge?
+N.B.: confirm that matplotlib and scipy are both coming from conda-forge
 
 If you run "conda env list" again will will see a second entry,
 for cetb. The asterisk will be positioned in the environment that is
@@ -164,4 +167,3 @@ conda info --envs
 To remove a conda env:
 
 conda remove --name <my_env> --all
-test comment Mahboubeh
