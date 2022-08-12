@@ -169,4 +169,3 @@ To remove a conda env:
 conda remove --name <my_env> --all
 
    
-## This is my first change - Vicki 
