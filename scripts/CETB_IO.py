@@ -5,7 +5,7 @@ from datetime import datetime
 import glob
 from netCDF4 import Dataset, num2date
 import numpy as np
-from osgeo import gdal, gdal_array, osr   # noqa
+from osgeo import gdal, gdal_array, gdalconst, osr   # noqa
 from gdalconst import GA_ReadOnly
 import pandas as pd
 import pdb; # insert at places for breakpoints: pdb.set_trace()
@@ -719,10 +719,7 @@ def find_cube_offset(subsetName, cubeDir=None, cubeType=None, verbose=False):
     if not cubeType:
         cubeType = '3*V-SIR'
 
-    cubePattern = "%s/CETB.cubefile.%s.*-%s-*-v*.*.TB.nc" % (
-        cubeDir,
-        subsetName,
-        cubeType)
+    cubePattern = "%s\CETB.cubefile.%s.*-%s-*-v*.*.TB.nc"%(cubeDir,subsetName,cubeType)
     
     # Just use the last one found
     # Check for no files found and return a reasonable error message
