@@ -50,16 +50,16 @@ channel.
 
 Add necessary channels (order is important here):
 
-'''
+```
 conda config --add channels conda-forge
 conda config --add channels nsidc
-'''
+```
 
 You should see the following when checking your channels:
 
-'''
+```
 conda config --show channels
-'''
+```
 
 channels:
    - nsidc
