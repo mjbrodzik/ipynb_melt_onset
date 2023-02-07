@@ -270,6 +270,7 @@ def MOD_array(datadir, prefix, CETB, DAV, rows_cols, Years, window, count,
     # (window= no. of obs, 2 per day)
     matrix=matrix.rolling(window).sum()
     
+    #Added Fall 2022
     # count= no. times thresholds are tripped for algo
     # returns all values in the matrix that are >= count and
     # meet the melt criteria (i.e. melt thresholds)
