@@ -6,7 +6,6 @@ import glob
 from netCDF4 import Dataset, num2date
 import numpy as np
 from osgeo import gdal, gdal_array, osr   # noqa
-from gdalconst import GA_ReadOnly
 import pandas as pd
 import pdb; # insert at places for breakpoints: pdb.set_trace()
 import warnings
@@ -461,7 +460,7 @@ def read_cetb_geotiff(filename, verbose=False):
     # Read the image data as a numeric array
     img = gdal_array.LoadFile(filename)
 
-    f = gdal.Open(filename, GA_ReadOnly)
+    f = gdal.Open(filename, gdal.GA_ReadOnly)
     geoTransform = f.GetGeoTransform()
     minX = geoTransform[0]
     maxY = geoTransform[3]
@@ -892,11 +891,11 @@ def years_for(platform):
         Years = [2010,2011,2012,2013,2014,2015,2016,2017,2018,2019] 
     elif platform=='F18': #F18 SSMIS dates
         Years = [2010,2011,2012,2013,2014,2015,2016,2017,2018,2019]  
-    elif platform=='F18': #F18 SSMIS dates
-        Years = [2010,2011,2012,2013,2014,2015,2016,2017,2018,2019]  
     #not including F19 (short time series)
     elif platform=='AQUA':
         Years = [2003,2004,2005,2006,2007,2008,2009,2010,2011]
+    elif platform=='GCOMW1':
+        Years = [2021,2022]
     else: 
         raise IOError ('unrecognized platform')
 

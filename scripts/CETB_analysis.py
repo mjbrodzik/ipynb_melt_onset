@@ -209,15 +209,22 @@ def parse_row_col(s):
 #   Years: list of years to process
 #   window: window for algorithm, 10 would be 5 days (assumes 2 measurements/day)
 #   count: number of TB/DAV exceedances to trigger melt onset
+#   EHD_window: window for end of high DAV, similar to window
+#   EHD_count: number of high TB/low DAV occurrence after melt onset
 #   DAV_threshold:
 #   Tb_threshold:
 def MOD_array(datadir, prefix, CETB, DAV, rows_cols, Years, window, count,
-              DAV_threshold, Tb_threshold):
+              EHD_window, EHD_count, DAV_threshold, Tb_threshold):
 
     # Find times/places when melt conditions are satisfied
     melt_condition_met = (
         DAV > DAV_threshold) & (CETB['TB'][:, :, :] > Tb_threshold)
     flag = melt_condition_met.astype(int)
+    
+    # Find times/places when end of high DAV conditions are satisfied
+    EHD_condition_met = (
+        DAV <= DAV_threshold) & (CETB['TB'][:, :, :] > Tb_threshold)
+    EHD_flag = EHD_condition_met.astype(int)
     
     # Prepare a DataFrame to do the heavy-lifting on the algorithm:
     # Define a list of column_names with one for each array row, col
@@ -229,19 +236,33 @@ def MOD_array(datadir, prefix, CETB, DAV, rows_cols, Years, window, count,
     # newdata: rows are dates, columns are pixels
     newdata = np.zeros([flag.shape[0],
                         flag.shape[1] * flag.shape[2]], dtype=flag.dtype)
+    
     print("newdata.shape %s" % str(newdata.shape))
     print("moving flag array to newdata...")
     print("number of days = %d" % flag.shape[0])
+    
+    # EHD_newdata: rows are dates, columns are pixels
+    EHD_newdata = np.zeros([EHD_flag.shape[0],
+                        EHD_flag.shape[1] * EHD_flag.shape[2]], dtype=EHD_flag.dtype)
+    
+    print("EHD_newdata.shape %s" % str(EHD_newdata.shape))
+    print("moving EHD_flag array to EHD_newdata...")
+    print("number of days = %d" % EHD_flag.shape[0])
 
     for d in np.arange(flag.shape[0]):
         if np.mod(d, 100) == 0:
             print("Next d = %d" % d)
         newdata[d,] = flag[d, :, :].flatten()
+        EHD_newdata[d,] = EHD_flag[d, :, :].flatten()
     
+    # Converting numpy arrays to dataframe
     matrix = pd.DataFrame(data=newdata, columns=col_names)
     matrix.set_index(pd.Index(CETB['cal_date']), inplace=True)
 
     meltflag_df=matrix.copy(deep=True)
+    
+    #set breakpoint
+    #pdb.set_trace()
     
     print("dataFrame is ready with flag data")
     print("doing rolling sums...")
@@ -249,8 +270,11 @@ def MOD_array(datadir, prefix, CETB, DAV, rows_cols, Years, window, count,
     # (window= no. of obs, 2 per day)
     matrix=matrix.rolling(window).sum()
     
+    #Added Fall 2022
     # count= no. times thresholds are tripped for algo
-    matrix=matrix[matrix>=count]
+    # returns all values in the matrix that are >= count and
+    # meet the melt criteria (i.e. melt thresholds)
+    matrix=matrix[(matrix>=count) & (meltflag_df==1)]
     # drop rows (dates) with all pixels NaN
     matrix=matrix.dropna(axis=0, how='all') 
 
@@ -259,7 +283,30 @@ def MOD_array(datadir, prefix, CETB, DAV, rows_cols, Years, window, count,
     # MOD in DOY in each cell for that pixel and year
     df = pd.DataFrame()
     num_pixels = len(matrix.columns)
+    
+    #
+    EHD_matrix = pd.DataFrame(data=EHD_newdata, columns=col_names)
+    EHD_matrix.set_index(pd.Index(CETB['cal_date']), inplace=True)
 
+    EHDflag_df=EHD_matrix.copy(deep=True)
+    
+    print("dataFrame is ready with EHD flag data")
+    print("doing rolling sums...")
+    # EHD algorithm - calculate sum on a rolling window
+    # (window= no. of obs, 2 per day)
+    EHD_matrix=EHD_matrix.rolling(EHD_window).sum()
+    
+    # count= no. times thresholds are tripped for algo
+    EHD_matrix=EHD_matrix[EHD_matrix>=EHD_count]
+    # drop rows (dates) with all pixels NaN
+    EHD_matrix=EHD_matrix.dropna(axis=0, how='all') 
+
+    # gets a dataframe with one row for each pixel,
+    # one column for each year,
+    # EHD in DOY in each cell for that pixel and year
+    EHD_df = pd.DataFrame()
+    EHD_num_pixels = len(EHD_matrix.columns)
+    
     # Find the first value date for each year in each column
     # It's possible that no melt condition is met for a given year/column
     # but this shows up in different ways:
@@ -288,6 +335,33 @@ def MOD_array(datadir, prefix, CETB, DAV, rows_cols, Years, window, count,
         df = pd.concat([df, dates_series], axis=1)
     
     df.columns = Years
+    
+    # Above section copied and modified for EHD (IN PROGRESS) - need to
+    # feed in df from line 331
+    # If there is a melt onset date for this year and column, then look
+    # for the ensuing EHD
+    for year in Years:
+        print("Next year = %d..." % year)
+        dates = np.full(EHD_num_pixels, pd.NaT)
+        for column_index, column in enumerate(EHD_matrix.columns):
+            try:
+                first_EHD_date = EHD_matrix.loc[str(year)][column].first_valid_index()
+            except KeyError:
+                print("MOD_array: no EHD found for pixel %s in year %d" % (
+                    column, year))
+                continue
+
+            if first_EHD_date is not None:
+                dates[column_index] = first_EHD_date
+            else:
+                print("MOD_array: no EHD found for pixel %s in year %d" % (
+                    column, year))
+                
+        dates_series = pd.Series(dates)
+        dates_series = dates_series.dt.dayofyear
+        EHD_df = pd.concat([EHD_df, dates_series], axis=1)
+    
+    EHD_df.columns = Years
 
     # get the average MOD for each pixel and make it an array for plotting
     print("Getting average MOD at each pixel...")
@@ -301,8 +375,22 @@ def MOD_array(datadir, prefix, CETB, DAV, rows_cols, Years, window, count,
 
     print("Setting geolocation information...")
     df['pixel'] = matrix.columns
+    
+    # get the average EHD for each pixel and make it an array for plotting
+    print("Getting average EHD at each pixel...")
+    EHD = EHD_df.mean(axis=1).values
+    EHD = np.ma.array(EHD)   # make it masked array
+    EHD[EHD < 0] = np.ma.masked   #convert any invalid EHDs to masked
+    
+    # Store the Avg EHD for these years as the last column in the data frame
+    EHD_df['Avg'] = EHD
+    EHD_data_columns = EHD_df.columns
+
+    print("Setting geolocation information...")
+    EHD_df['pixel'] = EHD_matrix.columns
 
     # Insert columns with subset pixel geolocations x, y, lat, lon, row, col
+    # IN PROGRESS (may do EHD and MOD together)
     num_rows = len(df.index)
     xx, yy = np.meshgrid(CETB['x'], CETB['y'])
     df['x'] = np.reshape(xx, num_rows)
@@ -312,11 +400,21 @@ def MOD_array(datadir, prefix, CETB, DAV, rows_cols, Years, window, count,
     df["row"] = df["column"] = ""
     df[["row", "column"]] = list(df.pixel.apply(parse_row_col))
 
+    EHD_df['x'] = df['x']
+    EHD_df['y'] = df['y']
+    EHD_df['latitude'] = df['latitude']
+    EHD_df['longitude'] = df['longitude']
+    EHD_df["row"] = df["row"]
+    EHD_df[["row", "column"]] = df[["row", "column"]]
+
     # Put the geolocation fields at the beginning of the columns
     geo_columns = df.columns[-7:]
     df = df[geo_columns.append(data_columns)]
     
-    return MOD, df, meltflag_df
+    geo_columns = EHD_df.columns[-7:]
+    EHD_df = EHD_df[geo_columns.append(EHD_data_columns)]
+    
+    return MOD, df, meltflag_df, EHD, EHD_df, EHDflag_df
 
 # plot map of average MOD for year of interest
 #def MOD_array_year(datadir, prefix, CETB_data, DAV,

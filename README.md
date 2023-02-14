@@ -1,7 +1,7 @@
 # ipynb_melt_onset
 Notebooks for melt onset research.
 
-## To install the python cetbtools on Windows:
+## To install the python cetbtools:
 
 1. Download and install Miniconda3 from
 
@@ -50,12 +50,16 @@ channel.
 
 Add necessary channels (order is important here):
 
+```
 conda config --add channels conda-forge
 conda config --add channels nsidc
+```
 
 You should see the following when checking your channels:
 
+```
 conda config --show channels
+```
 
 channels:
    - nsidc
@@ -66,31 +70,39 @@ channels:
 
 First, confirm that you only have the base environment:
 
+```
 conda info --envs
+```
 
 should return:
-
+```
 # conda environments:
 base                 * C:<your home directory>\miniconda3
-
+```
 Now install a package called mamba in the base environment that
 will speed up a lot of the rest of the process:
 
+```
 conda install mamba
+```
 
 Now use mamba to create a new environment that we will use for our project:
-
+```
 mamba create -n cetb cetbtools matplotlib scipy jupyter basemap seaborn
-
+```
 This should get cetbtools 1.7.x--this is the latest as of August 2022.
 
 Optional, only if it's needed to get a very specific version of cetbtools:
 
 Windows:
-mamba create -n cetbTest cetbtools==1.6.0.rc2 matplotlib scipy jupyter basemap proj4 seaborn
-Non-Windows:
-mamba create -n cetbTest cetbtools==1.6.0.rc2 matplotlib scipy jupyter basemap seaborn
+```
+mamba create -n cetb cetbtools matplotlib scipy jupyter basemap proj4 seaborn
+```
 
+Non-Windows:
+```
+mamba create -n cetb cetbtools matplotlib scipy jupyter basemap seaborn
+```
 as of August 2022, apparently mamba won't do the magic on OSX, use conda if working on a Mac.
 
 N.B.:
