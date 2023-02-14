@@ -5,8 +5,7 @@ from datetime import datetime
 import glob
 from netCDF4 import Dataset, num2date
 import numpy as np
-from osgeo import gdal, gdal_array, osr   # noqa
-from gdalconst import GA_ReadOnly
+from osgeo import gdal, gdalconst, gdal_array, osr   # noqa
 import pandas as pd
 import pdb; # insert at places for breakpoints: pdb.set_trace()
 import warnings
@@ -461,7 +460,7 @@ def read_cetb_geotiff(filename, verbose=False):
     # Read the image data as a numeric array
     img = gdal_array.LoadFile(filename)
 
-    f = gdal.Open(filename, GA_ReadOnly)
+    f = gdal.Open(filename, gdalconst.GA_ReadOnly)
     geoTransform = f.GetGeoTransform()
     minX = geoTransform[0]
     maxY = geoTransform[3]
