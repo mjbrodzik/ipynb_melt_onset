@@ -197,7 +197,8 @@ def parse_row_col(s):
     return [int(str) for str in s.split(',')]
 
 
-# plot map of average MOD for period of record
+# Calculate MOD for each pixel and year in period of record
+# Also calculates pixelwise avg, min and max
 # Inputs:
 #   datadir: top directory location with cube data
 #   prefix:
@@ -414,7 +415,13 @@ def MOD_array(datadir, prefix, CETB, DAV, rows_cols, Years, window, count,
     geo_columns = EHD_df.columns[-7:]
     EHD_df = EHD_df[geo_columns.append(EHD_data_columns)]
     
-    return MOD, df, meltflag_df, EHD, EHD_df, EHDflag_df
+    # Calculate pixelwise min/max
+    df['Min'] = df.loc[:, Years].min(axis=1)
+    df['Max'] = df.loc[:, Years].max(axis=1)
+    EHD_df['Min'] = EHD_df.loc[:, Years].min(axis=1)
+    EHD_df['Max'] = EHD_df.loc[:, Years].max(axis=1)
+    
+    return df, meltflag_df, EHD_df, EHDflag_df
 
 # plot map of average MOD for year of interest
 #def MOD_array_year(datadir, prefix, CETB_data, DAV,
