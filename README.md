@@ -89,6 +89,10 @@ conda install mamba
 Now use mamba to create a new environment that we will use for our project:
 ```
 mamba create -n cetb cetbtools matplotlib scipy jupyter basemap seaborn
+```
+
+Alternatively, some extra packages that are needed for geotiff clipping operations: 
+```
 mamba create -n cetb cetbtools matplotlib scipy jupyter basemap seaborn geopandas rasterio pycrs
 ```
 This should get cetbtools 1.7.x--this is the latest as of August 2022.
