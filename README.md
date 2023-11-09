@@ -7,6 +7,13 @@ Notebooks for melt onset research.
 
 http://conda.pydata.org/miniconda.html.
 
+cd ~/Downloads
+
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+bash Miniconda3-latest-Linux-x86_64.sh
+
+
+
 Miniconda is a program that will allow you control what are
 called conda "environments," which just means that you can set up
 individualized python installations with difference sets of
@@ -151,7 +158,7 @@ cd <directory with your ipython notebooks>
 
 At the command prompt, start the jupyter notebook server:
 
-jupyter notebook
+jupyter notebook --ip=0.0.0.0 --no-browser
 
 Your browser should start up with jupyter server running in new
 tab. 
