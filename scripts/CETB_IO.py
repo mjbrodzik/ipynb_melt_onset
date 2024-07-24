@@ -277,6 +277,7 @@ def read_Tb_time(datadir, prefix, Years,y_start,y_end,x_start,x_end):
         filename=datadir+prefix+'.'+str(year)+'.TB_time.nc'
         list=glob.glob(filename)
         # load the raw data in
+        print("Next time filename=%s..." % list[-1])
         rawdata = Dataset(list[-1], "r", format="NETCDF4")
         
         # Compile the CETB data, the TB variable is saved as (time, y, x) - 
