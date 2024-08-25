@@ -7,6 +7,7 @@ from netCDF4 import Dataset, num2date
 import numpy as np
 from osgeo import gdal, gdal_array, osr   # noqa
 import pandas as pd
+from pathlib import Path
 import pdb; # insert at places for breakpoints: pdb.set_trace()
 import warnings
 
@@ -110,7 +111,7 @@ def read_Tb_whole(datadir, prefix, Years,
             subset = rawdata.variables['TB'][:,:,:]
         else:
             subset = rawdata.variables['TB'][0:,y_start:y_end,x_start:x_end]
-            
+
         if year==Years[0]:
             CETB_data = subset
         else:
@@ -647,62 +648,91 @@ def write_MOD_df_to_geotiff(df, gpd, outbasename, verbose=False):
 # ###################################################################
 
 def coords(datadir, prefix, lat_start, lat_end, lon_start, lon_end):
-    # this function takes the user inputs of latitude and longitude
-    # and returns the row/col numbers that identify Tb grids in the
-    # cubefile
-    # NOTE: change made April 2021: returned x_end and y_end are
-    # incremented by 1. This is different from prior versions,
-    # see note below. This may now be the correct action, we
-    # need to test it.    
-    # NOTE: this is a function I wrote, but it does basically the
-    # same thing as "find_cube_offset" and "grid_locationsof..."
-    # which are listed below and were coded by Mary Jo
-    # Just read any year since the structure is the same,
-    filename=datadir+prefix+'.*.TB.nc'
-    list=glob.glob(filename)
-    data=Dataset(list[-1], "r", format="NETCDF4")
+    # converts input latitude and longitude area to row/col coordinates
+    # in the cubefiles described by datadir and prefix
+    # datadir : path to cubefiles
+    # prefix : string wildcard to use to look for 'datadir/prefix.*.TB.nc'
+    #          cubefiles
+    # lat_start, lat_end : begin/end of latitude range
+    # lon_start, lon_end : begin/end of longitude range
+    #
+    # returns: row/col coordinates for smallest rectangle in the cube's grid
+    #          that includes the input lat/lon box, as
+    #          
+    #          row_start, row_end, col_start, col_end
+    #      
+    #          where (row,col) = (0, 0) refers to the UL cell of the cube area
+    #   
 
-    lat=data.variables['latitude']
-    lat=lat[:]
-    lon=data.variables['longitude']
-    lon=lon[:]
-    lat_lon=np.dstack((lat,lon))
+    # Look for TB.nc cubefiles in the specified location
+    # Assumes all cubes found here are for the same cube coverage,
+    # so looking at the last one is good enough
+    filename = str(Path(datadir, "%s*TB.nc" % prefix))
+    files = glob.glob(filename)
+    if not files:
+        raise RuntimeError(
+            "%s : can't find TB.nc cubefiles to match %s" % (
+                __file__, filename))
+    
+    f = Dataset(files[-1], "r", format="NETCDF4")
 
-    # if latitude and longitude are the same, for reading one pixel
-    if ((lat_start==lat_end) & (lon_start==lon_end)):
-        y_start=np.min(np.argmin(
-            ((lat_start-lat_lon[:,:,0])**2+(lon_start-lat_lon[:,:,1])**2),
-                axis=0))
-        y_end=y_start+1
-        x_start=np.max(np.argmin(
-            ((lat_start-lat_lon[:,:,0])**2+(lon_start-lat_lon[:,:,1])**2),
-                axis=1))
-        x_end=x_start+1
-        return y_start,y_end,x_start,x_end
-    else:
-        row_col_set=np.where(
-            (lat_lon[:,:,0]>lat_start)&(
-                lat_lon[:,:,0]<lat_end)&(
-                     lat_lon[:,:,1]>lon_start)&(
-                        lat_lon[:,:,1]<lon_end))
-        y_start=np.min(row_col_set[0])
-        y_end=np.max(row_col_set[0])
-        x_start=np.min(row_col_set[1])
-        x_end=np.max(row_col_set[1])
-        # if x_start==x_end:
-        #     x_end=x_end+1
-        # if y_start==y_end:
-        #     y_end=y_end+1
-        x_end=x_end+1
-        y_end=y_end+1
+    # Read the last file found to get the gpd name to use
+    gpd = f.variables["crs"].long_name
+    grid = Ease2Transform(gpd)
 
-        # The returned x_end and y_end are 1 pixel further than the
-        # required area, because the subsequent subsetting is an
-        # open interval the ending row/col
-        # Probably this should be handled in the subsetters, but for
-        # now I'm going to test it by extending the bounds by 1
-        # row and column here...
-        return y_start,y_end,x_start,x_end
+    # ...and get the lat/lon of the UL grid cell
+    cube_UL_lat = f.variables["latitude"][0]
+    cube_UL_lon = f.variables["longitude"][0]
+
+    f.close()
+
+    # Convert the lat/lon of the UL cube cell to row/col offset in the full hemisphere grid
+    offset_row, offset_col = grid.geographic_to_grid(cube_UL_lat[0], cube_UL_lon[0])
+    offset_row = np.int32(offset_row + 0.5)
+    offset_col = np.int32(offset_col + 0.5)
+
+    # verify that lat_start <= lat_end and lon_start <= lon_end, swap if necessary
+    if lat_end < lat_start:
+        tmp = lat_start
+        lat_start = lat_end
+        lat_end = tmp
+
+    if lon_end < lon_start:
+        tmp = lon_start
+        lon_start = lon_end
+        lon_end = tmp
+
+    # make arrays of area corner lat/lons, start with NW corner, go clockwise
+    num = 4
+    corner_lats = np.array([lat_end, lat_end, lat_start, lat_start], dtype=np.float64)
+    corner_lons = np.array([lon_start, lon_end, lon_end, lon_start], dtype=np.float64)
+    corner_cols = np.zeros(num)
+    corner_rows = np.zeros(num)
+
+    # convert the area corners to integer row/col in the full hemisphere grid
+    for i in np.arange(num):
+        corner_rows[i], corner_cols[i] = grid.geographic_to_grid(
+            corner_lats[i], corner_lons[i])
+        
+    corner_rows = np.int32(corner_rows + 0.5)
+    corner_cols = np.int32(corner_cols + 0.5)
+
+    # Get the smallest rectangle in grid space that encloses
+    # the requested lat/lon area
+    # Convert to offsets relative to UL of cube
+    row_start = np.min(corner_rows) - offset_row
+    row_end = np.max(corner_rows) - offset_row
+    col_start = np.min(corner_cols) - offset_col
+    col_end = np.max(corner_cols) - offset_col
+
+    # The returned row_end and col_end are 1 pixel further than the
+    # required area, because the subsequent subsetting is open interval 
+    row_end = row_end + 1
+    col_end = col_end + 1
+
+    # Returned values are row/col relative to the UL=(0,0) cell in the cube
+    return row_start, row_end, col_start, col_end
+    
 
 # find the offset to be used for locating the grid row/col from lat/lon coordinates
 # for the requested subsetName
@@ -752,7 +782,7 @@ def find_cube_offset(subsetName, cubeDir=None, cubeType=None, verbose=False):
 
 
 # pass subsetName, latitudes and longitudes,
-# returns the rows and columns on the EASE grid for cubefiles,
+# returns the rows and columns on the EASE grid for each (25, 6.25, 3.125) cubefiles,
 # uses the 'find_cube_offset' function
 # this function assumes that at least one 36 or 37V SIR file,
 # one 18 or 19V SIR file and one 18 or 19V GRD file are stored locally
@@ -761,10 +791,13 @@ def grid_locations_of_subset(subsetName, lat, lon, cubeDir=None):
     gpds = ["EASE2_N3.125km", "EASE2_N6.25km", "EASE2_N25km"]
     types = ["3?V-SIR", "1?V-SIR", "1?V-GRD"]
     #possibly change to H or V for flexibility
+
+    dims = dict.fromkeys(['row', 'col'])
+    out = dict.fromkeys(gpds)
+    for g in gpds:
+        out[g] = dims.copy()
     
     print("Input lat, lon = %.6f, %.6f" % (lat, lon))
-    rows = np.zeros((3))
-    cols = np.zeros((3))
     for i, (thisGpd, thisType) in enumerate(zip(gpds, types)):
         grid = Ease2Transform(thisGpd)
         row, col = grid.geographic_to_grid(lat, lon)
@@ -779,21 +812,10 @@ def grid_locations_of_subset(subsetName, lat, lon, cubeDir=None):
         subCol = col - offset_col
         print("%15s(%s): row, col = %.6f, %.6f" % (
             subsetName, thisType, subRow, subCol))
-        rows[i] = subRow
-        cols[i] = subCol
-
-    rows = (rows + 0.5).astype('int32')
-    cols = (cols + 0.5).astype('int32')
-
-    #FIXME: MJB: validate that this routine is returning the correct coordinates
-    #FIXME: This routine should really return a dict structure, not an array
-    print(gpds)
-    print("%d %d %d %d %d %d" % (
-        cols[0], rows[0],
-        cols[1], rows[1],
-        cols[2], rows[2]))
+        out[thisGpd]['row'] = np.int32(subRow + 0.5)
+        out[thisGpd]['col'] = np.int32(subCol + 0.5)
     
-    return (rows, cols)
+    return out
 
 
 # get_nearest_ease2_coordinates(grid, lat, lon)
