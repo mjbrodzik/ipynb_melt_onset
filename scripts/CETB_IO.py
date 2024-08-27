@@ -8,7 +8,8 @@ import numpy as np
 from osgeo import gdal, gdal_array, osr   # noqa
 import pandas as pd
 from pathlib import Path
-import pdb; # insert at places for breakpoints: pdb.set_trace()
+import pdb # insert at places for breakpoints: pdb.set_trace()
+import re 
 import warnings
 
 
@@ -493,10 +494,11 @@ def read_cetb_geotiff(filename, verbose=False):
 # ############################ writers ##############################
 # ###################################################################
 
-# write_MOD_df_column_to_geotiff
-# Writes a column of the melt-onset-date dataframe to a geotiff
+# write_df_column_to_geotiff
+# Writes a column of the melt-onset-date or end-of-high-DAV dataframe 
+# to a geotiff
 # Input:
-#   df : MOD dataframe, with data columns for lat/lon, row/col, year and Avg
+#   df : MOD (or EHD) dataframe, with data columns for lat/lon, row/col, year and Avg
 #        and 1 dataframe row for each pixel in the subset
 #        assumes data rows are ordered from UL to LR
 #   column : column name to write to geotiff
@@ -506,8 +508,8 @@ def read_cetb_geotiff(filename, verbose=False):
 #   dtype='int16' : data type to write (data will be cast to this type if needed)
 #   verbose=False : verbose information during operation
 #
-def write_MOD_df_column_to_geotiff(df, column, grid, outbasename,
-                                   dtype='int16', verbose=False):
+def write_df_column_to_geotiff(df, column, grid, outbasename,
+                               dtype='int16', verbose=False):
 
     outfilename = "%s.%s.tif" % (outbasename, column)
     nrows = int(df.iloc[-1].row - df.iloc[0].row + 1)
@@ -605,12 +607,12 @@ def write_MOD_df_column_to_geotiff(df, column, grid, outbasename,
             'data': data}
 
 
-# write_MOD_df_to_geotiff
-# Writes data columns of the melt-onset-date dataframe to a geotiff
+# write_df_to_geotiff
+# Writes data columns of the melt-onset-date or end-of-high-DAV dataframe to a geotiff
 # year columns assumed to contain doy (1-366 or NaN) will be written as int16
 # Avg column assumed to contain avg doy will be written as float32
 # Input:
-#   df : MOD dataframe, with data columns for lat/lon, row/col, year and Avg
+#   df : MOD or EHD dataframe, with data columns for lat/lon, row/col, year and Avg
 #        and 1 dataframe row for each pixel in the subset
 #        assumes data rows are ordered from UL to LR
 #   gpd : projection/grid name, e.g. 'EASE2_N25km', 'EASE2_N6.25km', 'EASE2_N3.125km'
@@ -618,7 +620,7 @@ def write_MOD_df_column_to_geotiff(df, column, grid, outbasename,
 #        column name and '.tif' extension
 #   verbose=False : verbose information during operation
 #
-def write_MOD_df_to_geotiff(df, gpd, outbasename, verbose=False):
+def write_df_to_geotiff(df, gpd, outbasename, verbose=False):
 
     # initialize the grid once
     grid = Ease2Transform(gpd)
@@ -636,7 +638,7 @@ def write_MOD_df_to_geotiff(df, gpd, outbasename, verbose=False):
         dtype = 'int16'
         if 'Avg' == col:
             dtype = 'float32'
-        thisOut = write_MOD_df_column_to_geotiff(
+        thisOut = write_df_column_to_geotiff(
             df, col, grid, outbasename, dtype=dtype, verbose=verbose)
         out[col] = thisOut
 
@@ -923,6 +925,46 @@ def years_for(platform):
         raise IOError ('unrecognized platform')
 
     return (Years)
+
+
+def get_sir_info(channel, hem='N'):
+    """Returns the sir-to-grd pixel factor and sir gpd name for the specified channel
+    
+    Parameters
+    ----------
+    channel : str channel name, may include polarization, which will be ignored,
+              e.g. '19V', '1.4H'
+        
+    Returns
+    -------
+    (factor, sir_gpd)
+                
+    Raises
+    ------
+    NA
+        
+    Examples
+    --------
+    
+    """
+
+    # set the sir to grd factor, depends on the channel
+    chans3km = ['^1.4', '^36', '^37', '^85', '^89', '^91']
+    chans6km = ['^18', '^19', '^21', '^22', '^23']
+    chans12km = ['^6', '^10']
+    if re.search('|'.join(chans3km), channel):
+        factor = 8 # assume 3.125 km to 25 km
+        sir_gpd = 'EASE2_%s3.125km' % hem
+    elif re.search('|'.join(chans6km), channel):
+        factor = 4 # assume 6.25 km to 25 km
+        sir_gpd = 'EASE2_%s6.25km' % hem
+    elif re.search('|'.join(chans12km), channel):
+        factor = 2 # assume 12.5 km to 25 km
+        sir_gpd = 'EASE2_%s12.5km' % hem        
+    else:
+        raise ValueError("Cannot determine sir-to-grd factor from channel %s\n" % (channel) )
+    
+    return (factor, sir_gpd)
 
 
 
