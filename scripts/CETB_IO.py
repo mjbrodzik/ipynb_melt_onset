@@ -967,5 +967,241 @@ def get_sir_info(channel, hem='N'):
     return (factor, sir_gpd)
 
 
+def get_site_boundaries(SiteLabel):
+    """ Given a site label short string returns the lat/lon boundaries for that area
+            - could be a single pixel or an area
+            - also returns the full Site name for graphs etc
+        Parameters
+        -----------
+        SiteLabel - string - short site label with no punctuation or spaces
 
+        Returns
+        -------
+        lat_start, lat_end, lon_start, lon_end, Site
+        
+    """
+    match(SiteLabel):
+        case 'NEUkraine':
+            Site='NE, Ukraine'
+            lat_start=51.050   
+            lon_start=34.500
+            lat_end=51.050   
+            lon_end=34.500
+        case 'ChernihivForested':
+            Site= 'Chernihiv Oblast Forested, Ukraine'
+            lat_start=51.907788   
+            lon_start=31.295555
+            lat_end=51.907788   
+            lon_end=31.295555
+        case 'ChernihivAg':
+            Site= 'Chernihiv Oblast Agricultural, Ukraine'
+            lat_start=51.698747   
+            lon_start=31.449069
+            lat_end=51.698747   
+            lon_end=31.449069
+        case 'KomsomoletsIs':
+            Site='Komsomolets Is., Severnaya Zemlya AWS, Russia'
+            lat_start=80.51666667   
+            lon_start=94.81666667
+            lat_end=80.51666667   
+            lon_end=94.81666667
+        case 'Alberta':
+            Site='Low Relief Test, Alberta'
+            lat_start=49.73
+            lon_start=-111.14
+            lat_end=49.73
+            lon_end=-111.14
+        case 'GreatLakes':
+            Site='Great Lakes Test Site, Lake Superior E of Duluth'
+            lat_start=47.353097   
+            lon_start=-89.861310
+            lat_end=47.353097   
+            lon_end=-89.861310
 
+#AKYukon Sites
+        case 'Barrow3kmSEAirport':
+            Site='Barrow SE, AK'# 3 km SE of the airport pixel, GRD and SIRs should not be coastal
+#Note is within the same GRD as the airport
+            lat_start=71.2709
+            lon_start=-156.694
+            lat_end=71.2709
+            lon_end=-156.694
+        case 'Barrow airport, AK':
+            SiteLabel='BarrowAirport'
+            lat_start=71.28181
+            lon_start=-156.772
+            lat_end=71.28181
+            lon_end=-156.772
+        case 'Barrow45kmAirport':
+            Site='45 km S of Barrow airport, AK'
+            lat_start=70.908886
+            lon_start=-156.56875
+            lat_end=70.908886
+            lon_end=-156.56875
+        case 'Barrow114kmS':
+            Site='114 km South of Barrow airport, AK' #114 km south of airport to get an inland site
+            lat_start=70.28181
+            lon_start=-156.772
+            lat_end=70.28181
+            lon_end=-156.772
+        case 'UpperKuparuk':
+            Site ='Upper Kuparuk Basin, AK' #selected by VJ
+            lat_start=68.62421667
+            lon_start=-149.5250722
+            lat_end=68.62421667
+            lon_end=-149.5250722
+        case 'TechsekpukLake':
+            Site='Teshekpuk Lake 1'#near Barrow, AK (Permafrost installation NW margin of lake)'
+            lat_start=70.722902
+            lon_start=-153.836329
+            lat_end=70.722902
+            lon_end=-153.836329
+        case 'TechsekpukLake2':
+            Site='Teshekpuk Lake 2; center' #, near Barrow, AK (middle of lake)'
+            lat_start=70.58333675326588
+            lon_start=-153.452493001114
+            lat_end=70.58333675326588
+            lon_end=-153.452493001114
+
+    #Western_CA Sites
+        case 'NWT':
+            Site='NWT C57 04242006 Spring Migration'
+            lat_start=62.61
+            lon_start=-109.64
+            lat_end=62.61
+            lon_end=-109.64
+        case 'GreatSlaveLake':
+            Site='Great Slave Lake'
+            lat_start=61.87167
+            lon_start=-114.05
+            lat_end=61.87167
+            lon_end=-114.05
+
+#GLAIL Sites
+        case 'IcelandCentralVatnajokull':
+            Site='Iceland, Central Vatnajokull'
+            lat_start=64.442   
+            lon_start=-16.730 
+            lat_end=64.442   
+            lon_end=-16.730 
+        case 'IcelandKatlaCaldera':
+            Site='Iceland, Katla Caldera Test'
+            lat_start=63.64361111   
+            lon_start=-19.20138889
+            lat_end=63.64361111   
+            lon_end=-19.20138889
+        case 'IcelandVatnajokull1':
+            Site='Iceland, Vatnajokull Site 1'
+            lat_start=64.64903   
+            lon_start=-17.32128
+            lat_end=64.64903   
+            lon_end=-17.32128
+        case 'IcelandVatnajokull2':
+            Site = 'Iceland, Vatnajokull Site 2'
+            lat_start=64.25860278
+            lon_start=-16.93241667
+            lat_end=64.25860278
+            lon_end=-16.93241667
+        case 'IcelandVatnajokull3':
+            Site='Iceland, Vatnajokull Site 3'
+            lat_start=64.423333
+            lon_start=-16.77305556
+            lat_end=64.423333
+            lon_end=-16.77305556
+        case 'IcelandVatnajokull4':
+            Site='Iceland, Vatnajokull Site 4'
+            lat_start=64.66222
+            lon_start=-17.399444
+            lat_end=64.66222
+            lon_end=-17.399444
+
+    #Western_US Site
+        case 'SASP': 
+            Site='Senator Beck Basin (SASP), Colorado'
+            lat_start=37.9069   
+            lon_start=-107.710
+            lat_end=37.9069   
+            lon_end=-107.710
+        case 'RabbitEars':
+            Site='Rabbit Ears'
+            lat_start=40.5  #southern boundary
+            lat_end=40.5  #northern boundary
+            lon_start=-106.7  #western boundary
+            lon_end=-106.7 #eastern boundary
+        case 'Fraser':
+            Site='Fraser'
+            lat_start=39.85  #southern boundary
+            lat_end=40.0  #northern boundary
+            lon_start=-106.0  #western boundary
+            lon_end=-105.9 #eastern boundary
+        case 'NorthPark':
+            Site='North Park'
+            lat_start=40.7  #southern boundary
+            lat_end=40.7  #northern boundary
+            lon_start=-106.15  #western boundary
+            lon_end=-106.15 #eastern boundary
+        case 'CLPX-LSA':
+            Site='CLPX-LSA'
+            lat_start=39.7  #southern boundary
+            lat_end=41.0  #northern boundary
+            lon_start=-106.7  #western boundary
+            lon_end=-105.4 #eastern boundary
+        case 'CUSTOM':
+            Site='Custom'
+            lat_start=43  #southern boundary
+            lat_end=43  #northern boundary
+            lon_start=-110  #western boundary
+            lon_end=-110 #eastern boundary
+        case 'SenatorBeck':
+            Site='Senator Beck'
+            # enter latitutde and longitude in decimal degrees
+            lat_start=37.9069   #southern boundary
+            lat_end=37.9069   #northern boundary
+            lon_start=-107.726   #western boundary
+            lon_end=-107.726 
+        case 'vatna':
+            lat_start=63.75  
+            lat_end=64.88    
+            lon_start=-20 
+            lon_end=-15  
+            Site='Vatnajokull, Iceland'
+        case 'hunza':
+            lat_start=35.9  
+            lat_end=37.1   
+            lon_start=74 
+            lon_end=76 
+            Site='Hunza Basin'
+        case 'gsl':
+            lat_start=59.00  
+            lat_end=67.00   
+            lon_start=-119.00 
+            lon_end=-107.00
+            Site='Great Slave Lake, Canada'
+        case 'bathurst_range':
+            lat_start=60.00  
+            lat_end=67.25   
+            lon_start=-119.00 
+            lon_end=-107.50
+            Site='Bathurst Caribou Range, NWT'
+        case 'bathurst_range2':
+            lat_start=63.00  
+            lat_end=65.500   
+            lon_start=-117.500 
+            lon_end=-112.00
+            Site='Bathurst Caribou Range subset, NWT'
+        case 'barrow':
+            lat_start=69.50  
+            lat_end=71.50    
+            lon_start=-158 
+            lon_end=-152  
+            Site='Barrow/Utkiagvik, AK'  
+        case 'fairbanks':
+            lat_start=63.0  
+            lat_end=66.7    
+            lon_start=-151.8
+            lon_end=-143.4  
+            Site='Fairbanks, AK'
+        case _:
+            return 0, 0, 0, 0, ''
+
+    return lat_start, lat_end, lon_start, lon_end, Site
