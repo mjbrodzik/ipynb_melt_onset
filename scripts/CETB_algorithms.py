@@ -106,7 +106,7 @@ def DAV_MOD(DAV_threshold, Tb_threshold, count, window,
     matrix = matrix.dropna(axis=0, how='all') 
     
     # group the dataframe by year, then get the MOD for each pixel by year
-    grouped = matrix.groupby(pd.Grouper(freq='A'))
+    grouped = matrix.groupby(pd.Grouper(freq='YE'))
     MOD_df = grouped.apply(findMOD)
     
     MOD_df.index = MOD_df.index.droplevel('date')
@@ -164,10 +164,10 @@ def D_DAV(CETB_data, cal_date, cal_year, Years, rows_cols):
 	matrix=matrix.set_index(cal_date)
 	DAVpd=matrix.diff()  #take running difference to get DAV
 	DAVpd=DAVpd.abs()  #absolute value
-	DAV_monthly=DAVpd.groupby(pd.Grouper(freq='M')).mean()  #group by month and get average for each month
+	DAV_monthly=DAVpd.groupby(pd.Grouper(freq='ME')).mean()  #group by month and get average for each month
 	DAV_monthly=DAV_monthly.dropna(axis=0, how='all')  #drop rows with all NaN values
-	DAV_monthly=DAV_monthly.groupby(pd.Grouper(freq='A')).head(2)  #group by year and take the first two rows of each year (Jan-Feb)
-	DAV_monthly=DAV_monthly.groupby(pd.Grouper(freq='A')).mean()  #
+	DAV_monthly=DAV_monthly.groupby(pd.Grouper(freq='YE')).head(2)  #group by year and take the first two rows of each year (Jan-Feb)
+	DAV_monthly=DAV_monthly.groupby(pd.Grouper(freq='YE')).mean()  #
 	DAV_monthly=DAV_monthly.set_index([Years])
 	
 	DAV_monthly=DAV_monthly+10
@@ -191,10 +191,10 @@ def Winter_DAV(CETB_data, cal_date, cal_year, Years, rows_cols):
 	  
 	DAVpd=matrix.diff()  #take running difference to get DAV
 	DAVpd=DAVpd.abs()  #absolute value
-	DAV_monthly=DAVpd.groupby(pd.Grouper(freq='M')).mean()  #group by month and get average for each month
+	DAV_monthly=DAVpd.groupby(pd.Grouper(freq='ME')).mean()  #group by month and get average for each month
 	DAV_monthly=DAV_monthly.dropna(axis=0, how='all')  #drop rows with all NaN values
-	DAV_monthly=DAV_monthly.groupby(pd.Grouper(freq='A')).head(2)  #group by year and take the first two rows of each year (Jan-Feb)
-	DAV_monthly=DAV_monthly.groupby(pd.Grouper(freq='A')).mean()  #
+	DAV_monthly=DAV_monthly.groupby(pd.Grouper(freq='YE')).head(2)  #group by year and take the first two rows of each year (Jan-Feb)
+	DAV_monthly=DAV_monthly.groupby(pd.Grouper(freq='YE')).mean()  #
 	DAV_monthly=DAV_monthly.set_index([Years])
 	
 	return DAV_monthly
