@@ -7,7 +7,9 @@ from netCDF4 import Dataset, num2date
 import numpy as np
 from osgeo import gdal, gdal_array, osr   # noqa
 import pandas as pd
-import pdb; # insert at places for breakpoints: pdb.set_trace()
+from pathlib import Path
+import pdb # insert at places for breakpoints: pdb.set_trace()
+import re 
 import warnings
 
 
@@ -106,11 +108,15 @@ def read_Tb_whole(datadir, prefix, Years,
         rawdata = Dataset(filename, "r", format="NETCDF4")
 
         # Compile the CETB data, the TB variable is saved as (time, y, x) -
+        cube_time, cube_y, cube_x=rawdata.variables['TB'].shape
+        if ( y_end > cube_y ) or ( x_end > cube_x ):
+            raise ValueError('Subset area not found in this cube')
+            
         if get_full_cube:
             subset = rawdata.variables['TB'][:,:,:]
         else:
             subset = rawdata.variables['TB'][0:,y_start:y_end,x_start:x_end]
-            
+
         if year==Years[0]:
             CETB_data = subset
         else:
@@ -277,6 +283,7 @@ def read_Tb_time(datadir, prefix, Years,y_start,y_end,x_start,x_end):
         filename=datadir+prefix+'.'+str(year)+'.TB_time.nc'
         list=glob.glob(filename)
         # load the raw data in
+        print("Next time filename=%s..." % list[-1])
         rawdata = Dataset(list[-1], "r", format="NETCDF4")
         
         # Compile the CETB data, the TB variable is saved as (time, y, x) - 
@@ -491,10 +498,11 @@ def read_cetb_geotiff(filename, verbose=False):
 # ############################ writers ##############################
 # ###################################################################
 
-# write_MOD_df_column_to_geotiff
-# Writes a column of the melt-onset-date dataframe to a geotiff
+# write_df_column_to_geotiff
+# Writes a column of the melt-onset-date or end-of-high-DAV dataframe 
+# to a geotiff
 # Input:
-#   df : MOD dataframe, with data columns for lat/lon, row/col, year and Avg
+#   df : MOD (or EHD) dataframe, with data columns for lat/lon, row/col, year and Avg
 #        and 1 dataframe row for each pixel in the subset
 #        assumes data rows are ordered from UL to LR
 #   column : column name to write to geotiff
@@ -504,8 +512,8 @@ def read_cetb_geotiff(filename, verbose=False):
 #   dtype='int16' : data type to write (data will be cast to this type if needed)
 #   verbose=False : verbose information during operation
 #
-def write_MOD_df_column_to_geotiff(df, column, grid, outbasename,
-                                   dtype='int16', verbose=False):
+def write_df_column_to_geotiff(df, column, grid, outbasename,
+                               dtype='int16', verbose=False):
 
     outfilename = "%s.%s.tif" % (outbasename, column)
     nrows = int(df.iloc[-1].row - df.iloc[0].row + 1)
@@ -603,12 +611,12 @@ def write_MOD_df_column_to_geotiff(df, column, grid, outbasename,
             'data': data}
 
 
-# write_MOD_df_to_geotiff
-# Writes data columns of the melt-onset-date dataframe to a geotiff
+# write_df_to_geotiff
+# Writes data columns of the melt-onset-date or end-of-high-DAV dataframe to a geotiff
 # year columns assumed to contain doy (1-366 or NaN) will be written as int16
 # Avg column assumed to contain avg doy will be written as float32
 # Input:
-#   df : MOD dataframe, with data columns for lat/lon, row/col, year and Avg
+#   df : MOD or EHD dataframe, with data columns for lat/lon, row/col, year and Avg
 #        and 1 dataframe row for each pixel in the subset
 #        assumes data rows are ordered from UL to LR
 #   gpd : projection/grid name, e.g. 'EASE2_N25km', 'EASE2_N6.25km', 'EASE2_N3.125km'
@@ -616,7 +624,7 @@ def write_MOD_df_column_to_geotiff(df, column, grid, outbasename,
 #        column name and '.tif' extension
 #   verbose=False : verbose information during operation
 #
-def write_MOD_df_to_geotiff(df, gpd, outbasename, verbose=False):
+def write_df_to_geotiff(df, gpd, outbasename, verbose=False):
 
     # initialize the grid once
     grid = Ease2Transform(gpd)
@@ -634,7 +642,7 @@ def write_MOD_df_to_geotiff(df, gpd, outbasename, verbose=False):
         dtype = 'int16'
         if 'Avg' == col:
             dtype = 'float32'
-        thisOut = write_MOD_df_column_to_geotiff(
+        thisOut = write_df_column_to_geotiff(
             df, col, grid, outbasename, dtype=dtype, verbose=verbose)
         out[col] = thisOut
 
@@ -646,62 +654,91 @@ def write_MOD_df_to_geotiff(df, gpd, outbasename, verbose=False):
 # ###################################################################
 
 def coords(datadir, prefix, lat_start, lat_end, lon_start, lon_end):
-    # this function takes the user inputs of latitude and longitude
-    # and returns the row/col numbers that identify Tb grids in the
-    # cubefile
-    # NOTE: change made April 2021: returned x_end and y_end are
-    # incremented by 1. This is different from prior versions,
-    # see note below. This may now be the correct action, we
-    # need to test it.    
-    # NOTE: this is a function I wrote, but it does basically the
-    # same thing as "find_cube_offset" and "grid_locationsof..."
-    # which are listed below and were coded by Mary Jo
-    # Just read any year since the structure is the same,
-    filename=datadir+prefix+'.*.TB.nc'
-    list=glob.glob(filename)
-    data=Dataset(list[-1], "r", format="NETCDF4")
+    # converts input latitude and longitude area to row/col coordinates
+    # in the cubefiles described by datadir and prefix
+    # datadir : path to cubefiles
+    # prefix : string wildcard to use to look for 'datadir/prefix.*.TB.nc'
+    #          cubefiles
+    # lat_start, lat_end : begin/end of latitude range
+    # lon_start, lon_end : begin/end of longitude range
+    #
+    # returns: row/col coordinates for smallest rectangle in the cube's grid
+    #          that includes the input lat/lon box, as
+    #          
+    #          row_start, row_end, col_start, col_end
+    #      
+    #          where (row,col) = (0, 0) refers to the UL cell of the cube area
+    #   
 
-    lat=data.variables['latitude']
-    lat=lat[:]
-    lon=data.variables['longitude']
-    lon=lon[:]
-    lat_lon=np.dstack((lat,lon))
+    # Look for TB.nc cubefiles in the specified location
+    # Assumes all cubes found here are for the same cube coverage,
+    # so looking at the last one is good enough
+    filename = str(Path(datadir, "%s*TB.nc" % prefix))
+    files = glob.glob(filename)
+    if not files:
+        raise RuntimeError(
+            "%s : can't find TB.nc cubefiles to match %s" % (
+                __file__, filename))
+    
+    f = Dataset(files[-1], "r", format="NETCDF4")
 
-    # if latitude and longitude are the same, for reading one pixel
-    if ((lat_start==lat_end) & (lon_start==lon_end)):
-        y_start=np.min(np.argmin(
-            ((lat_start-lat_lon[:,:,0])**2+(lon_start-lat_lon[:,:,1])**2),
-                axis=0))
-        y_end=y_start+1
-        x_start=np.max(np.argmin(
-            ((lat_start-lat_lon[:,:,0])**2+(lon_start-lat_lon[:,:,1])**2),
-                axis=1))
-        x_end=x_start+1
-        return y_start,y_end,x_start,x_end
-    else:
-        row_col_set=np.where(
-            (lat_lon[:,:,0]>lat_start)&(
-                lat_lon[:,:,0]<lat_end)&(
-                     lat_lon[:,:,1]>lon_start)&(
-                        lat_lon[:,:,1]<lon_end))
-        y_start=np.min(row_col_set[0])
-        y_end=np.max(row_col_set[0])
-        x_start=np.min(row_col_set[1])
-        x_end=np.max(row_col_set[1])
-        # if x_start==x_end:
-        #     x_end=x_end+1
-        # if y_start==y_end:
-        #     y_end=y_end+1
-        x_end=x_end+1
-        y_end=y_end+1
+    # Read the last file found to get the gpd name to use
+    gpd = f.variables["crs"].long_name
+    grid = Ease2Transform(gpd)
 
-        # The returned x_end and y_end are 1 pixel further than the
-        # required area, because the subsequent subsetting is an
-        # open interval the ending row/col
-        # Probably this should be handled in the subsetters, but for
-        # now I'm going to test it by extending the bounds by 1
-        # row and column here...
-        return y_start,y_end,x_start,x_end
+    # ...and get the lat/lon of the UL grid cell
+    cube_UL_lat = f.variables["latitude"][0]
+    cube_UL_lon = f.variables["longitude"][0]
+
+    f.close()
+
+    # Convert the lat/lon of the UL cube cell to row/col offset in the full hemisphere grid
+    offset_row, offset_col = grid.geographic_to_grid(cube_UL_lat[0], cube_UL_lon[0])
+    offset_row = np.int32(offset_row + 0.5)
+    offset_col = np.int32(offset_col + 0.5)
+
+    # verify that lat_start <= lat_end and lon_start <= lon_end, swap if necessary
+    if lat_end < lat_start:
+        tmp = lat_start
+        lat_start = lat_end
+        lat_end = tmp
+
+    if lon_end < lon_start:
+        tmp = lon_start
+        lon_start = lon_end
+        lon_end = tmp
+
+    # make arrays of area corner lat/lons, start with NW corner, go clockwise
+    num = 4
+    corner_lats = np.array([lat_end, lat_end, lat_start, lat_start], dtype=np.float64)
+    corner_lons = np.array([lon_start, lon_end, lon_end, lon_start], dtype=np.float64)
+    corner_cols = np.zeros(num)
+    corner_rows = np.zeros(num)
+
+    # convert the area corners to integer row/col in the full hemisphere grid
+    for i in np.arange(num):
+        corner_rows[i], corner_cols[i] = grid.geographic_to_grid(
+            corner_lats[i], corner_lons[i])
+        
+    corner_rows = np.int32(corner_rows + 0.5)
+    corner_cols = np.int32(corner_cols + 0.5)
+
+    # Get the smallest rectangle in grid space that encloses
+    # the requested lat/lon area
+    # Convert to offsets relative to UL of cube
+    row_start = np.min(corner_rows) - offset_row
+    row_end = np.max(corner_rows) - offset_row
+    col_start = np.min(corner_cols) - offset_col
+    col_end = np.max(corner_cols) - offset_col
+
+    # The returned row_end and col_end are 1 pixel further than the
+    # required area, because the subsequent subsetting is open interval 
+    row_end = row_end + 1
+    col_end = col_end + 1
+
+    # Returned values are row/col relative to the UL=(0,0) cell in the cube
+    return row_start, row_end, col_start, col_end
+    
 
 # find the offset to be used for locating the grid row/col from lat/lon coordinates
 # for the requested subsetName
@@ -751,7 +788,7 @@ def find_cube_offset(subsetName, cubeDir=None, cubeType=None, verbose=False):
 
 
 # pass subsetName, latitudes and longitudes,
-# returns the rows and columns on the EASE grid for cubefiles,
+# returns the rows and columns on the EASE grid for each (25, 6.25, 3.125) cubefiles,
 # uses the 'find_cube_offset' function
 # this function assumes that at least one 36 or 37V SIR file,
 # one 18 or 19V SIR file and one 18 or 19V GRD file are stored locally
@@ -760,10 +797,13 @@ def grid_locations_of_subset(subsetName, lat, lon, cubeDir=None):
     gpds = ["EASE2_N3.125km", "EASE2_N6.25km", "EASE2_N25km"]
     types = ["3?V-SIR", "1?V-SIR", "1?V-GRD"]
     #possibly change to H or V for flexibility
+
+    dims = dict.fromkeys(['row', 'col'])
+    out = dict.fromkeys(gpds)
+    for g in gpds:
+        out[g] = dims.copy()
     
     print("Input lat, lon = %.6f, %.6f" % (lat, lon))
-    rows = np.zeros((3))
-    cols = np.zeros((3))
     for i, (thisGpd, thisType) in enumerate(zip(gpds, types)):
         grid = Ease2Transform(thisGpd)
         row, col = grid.geographic_to_grid(lat, lon)
@@ -778,21 +818,10 @@ def grid_locations_of_subset(subsetName, lat, lon, cubeDir=None):
         subCol = col - offset_col
         print("%15s(%s): row, col = %.6f, %.6f" % (
             subsetName, thisType, subRow, subCol))
-        rows[i] = subRow
-        cols[i] = subCol
-
-    rows = (rows + 0.5).astype('int32')
-    cols = (cols + 0.5).astype('int32')
-
-    #FIXME: MJB: validate that this routine is returning the correct coordinates
-    #FIXME: This routine should really return a dict structure, not an array
-    print(gpds)
-    print("%d %d %d %d %d %d" % (
-        cols[0], rows[0],
-        cols[1], rows[1],
-        cols[2], rows[2]))
+        out[thisGpd]['row'] = np.int32(subRow + 0.5)
+        out[thisGpd]['col'] = np.int32(subCol + 0.5)
     
-    return (rows, cols)
+    return out
 
 
 # get_nearest_ease2_coordinates(grid, lat, lon)
@@ -902,5 +931,295 @@ def years_for(platform):
     return (Years)
 
 
+def get_sir_info(channel, hem='N'):
+    """Returns the sir-to-grd pixel factor and sir gpd name for the specified channel
+    
+    Parameters
+    ----------
+    channel : str channel name, may include polarization, which will be ignored,
+              e.g. '19V', '1.4H'
+        
+    Returns
+    -------
+    (factor, sir_gpd)
+                
+    Raises
+    ------
+    NA
+        
+    Examples
+    --------
+    
+    """
+
+    # set the sir to grd factor, depends on the channel
+    chans3km = ['^1.4', '^36', '^37', '^85', '^89', '^91']
+    chans6km = ['^18', '^19', '^21', '^22', '^23']
+    chans12km = ['^6', '^10']
+    if re.search('|'.join(chans3km), channel):
+        factor = 8 # assume 3.125 km to 25 km
+        sir_gpd = 'EASE2_%s3.125km' % hem
+    elif re.search('|'.join(chans6km), channel):
+        factor = 4 # assume 6.25 km to 25 km
+        sir_gpd = 'EASE2_%s6.25km' % hem
+    elif re.search('|'.join(chans12km), channel):
+        factor = 2 # assume 12.5 km to 25 km
+        sir_gpd = 'EASE2_%s12.5km' % hem        
+    else:
+        raise ValueError("Cannot determine sir-to-grd factor from channel %s\n" % (channel) )
+    
+    return (factor, sir_gpd)
 
 
+def get_site_boundaries(SiteLabel):
+    """ Given a site label short string returns the lat/lon boundaries for that area
+            - could be a single pixel or an area
+            - also returns the full Site name for graphs etc
+        Parameters
+        -----------
+        SiteLabel - string - short site label with no punctuation or spaces
+
+        Returns
+        -------
+        lat_start, lat_end, lon_start, lon_end, Site
+        
+    """
+    
+    dict = {
+        'NEUkraine':{
+            'Site':'NE, Ukraine',
+            'lat_start':51.050,
+            'lon_start':34.500,
+            'lat_end':51.050,
+            'lon_end':34.500},
+        'ChernihivForested':{
+            'Site':'Chernihiv Oblast Forested, Ukraine',
+            'lat_start':51.907788,
+            'lon_start':31.295555,
+            'lat_end':51.907788,
+            'lon_end':31.295555},
+        'ChernihivAg':{
+            'Site':'Chernihiv Oblast Agricultural, Ukraine',
+            'lat_start':51.698747,   
+            'lon_start':31.449069,
+            'lat_end':51.698747,   
+            'lon_end':31.449069},
+        'KomsomoletsIs':{
+            'Site':'Komsomolets Is., Severnaya Zemlya AWS, Russia',
+            'lat_start':80.51666667   ,
+            'lon_start':94.81666667,
+            'lat_end':80.51666667   ,
+            'lon_end':94.81666667},
+        'Alberta':{
+            'Site':'Low Relief Test, Alberta',
+            'lat_start':49.73,
+            'lon_start':-111.14,
+            'lat_end':49.73,
+            'lon_end':-111.14},
+        'GreatLakes':{
+            'Site':'Great Lakes Test Site, Lake Superior E of Duluth',
+            'lat_start':47.353097   ,
+            'lon_start':-89.861310,
+            'lat_end':47.353097   ,
+            'lon_end':-89.861310},
+ #AKYukon Sites
+ # 3 km SE of the airport pixel, GRD and SIRs should not be coastal
+ #Note is within the same GRD as the airport       
+        'Barrow3kmSEAirport':{
+            'Site':'Barrow SE, AK', 
+            'lat_start':71.2709,
+            'lon_start':-156.694,
+            'lat_end':71.2709,
+            'lon_end':-156.694},
+        'Barrow airport, AK':{
+            'Site':'BarrowAirport',
+            'lat_start':71.28181,
+            'lon_start':-156.772,
+            'lat_end':71.28181,
+            'lon_end':-156.772},
+        'Barrow45kmAirport':{
+            'Site':'45 km S of Barrow airport, AK',
+            'lat_start':70.908886,
+            'lon_start':-156.56875,
+            'lat_end':70.908886,
+            'lon_end':-156.56875},
+        'Barrow114kmS':{
+            'Site':'114 km South of Barrow airport, AK', #114 km south of airport to get an inland site
+            'lat_start':70.28181,
+            'lon_start':-156.772,
+            'lat_end':70.28181,
+            'lon_end':-156.772},
+        'UpperKuparuk':{
+            'Site':'Upper Kuparuk Basin, AK', #selected by VJ
+            'lat_start':68.62421667,
+            'lon_start':-149.5250722,
+            'lat_end':68.62421667,
+            'lon_end':-149.5250722},
+        'TechsekpukLake':{
+            'Site':'Teshekpuk Lake 1',#near Barrow, AK (Permafrost installation NW margin of lake)'
+            'lat_start':70.722902,
+            'lon_start':-153.836329,
+            'lat_end':70.722902,
+            'lon_end':-153.836329},
+        'TechsekpukLake2':{
+            'Site':'Teshekpuk Lake 2; center', #, near Barrow, AK (middle of lake)',
+            'lat_start':70.58333675326588,
+            'lon_start':-153.452493001114,
+            'lat_end':70.58333675326588,
+            'lon_end':-153.452493001114},
+        
+        
+     #Western_CA Sites
+        'NWT':{
+            'Site':'NWT C57 04242006 Spring Migration',
+            'lat_start':62.61,
+            'lon_start':-109.64,
+            'lat_end':62.61,
+            'lon_end':-109.64},
+        'GreatSlaveLake':{
+            'Site':'Great Slave Lake',
+            'lat_start':61.87167,
+            'lon_start':-114.05,
+            'lat_end':61.87167,
+            'lon_end':-114.05},
+         #GLAIL Sites
+        'IcelandCentralVatnajokull':{
+            'Site':'Iceland, Central Vatnajokull',
+            'lat_start':64.442   ,
+            'lon_start':-16.730 ,
+            'lat_end':64.442   ,
+            'lon_end':-16.730 },
+        'IcelandKatlaCaldera':{
+            'Site':'Iceland, Katla Caldera Test',
+            'lat_start':63.64361111   ,
+            'lon_start':-19.20138889,
+            'lat_end':63.64361111   ,
+            'lon_end':-19.20138889},
+        'IcelandVatnajokull1':{
+            'Site':'Iceland, Vatnajokull Site 1',
+            'lat_start':64.64903   ,
+            'lon_start':-17.32128,
+            'lat_end':64.64903   ,
+            'lon_end':-17.32128},
+        'IcelandVatnajokull2':{
+            'Site': 'Iceland, Vatnajokull Site 2',
+            'lat_start':64.25860278,
+            'lon_start':-16.93241667,
+            'lat_end':64.25860278,
+            'lon_end':-16.93241667},
+        'IcelandVatnajokull3':{
+            'Site':'Iceland, Vatnajokull Site 3',
+            'lat_start':64.423333,
+            'lon_start':-16.77305556,
+            'lat_end':64.423333,
+            'lon_end':-16.77305556},
+        'IcelandVatnajokull4':{
+            'Site':'Iceland, Vatnajokull Site 4',
+            'lat_start':64.66222,
+            'lon_start':-17.399444,
+            'lat_end':64.66222,
+            'lon_end':-17.399444},
+             #Western_US Site
+        'SASP': {
+            'Site':'Senator Beck Basin (SASP), Colorado',
+            'lat_start':37.9069   ,
+            'lon_start':-107.710,
+            'lat_end':37.9069   ,
+            'lon_end':-107.710},
+        'RabbitEars':{
+            'Site':'Rabbit Ears',
+            'lat_start':40.5 , #southern boundary
+            'lat_end':40.5  ,#northern boundary
+            'lon_start':-106.7,  #western boundary
+            'lon_end':-106.7}, #eastern boundary
+        'Fraser':{
+            'Site':'Fraser',
+            'lat_start':39.85,  #southern boundary
+            'lat_end':40.0  ,#northern boundary
+            'lon_start':-106.0,  #western boundary
+            'lon_end':-105.9}, #eastern boundary
+        'NorthPark':{
+            'Site':'North Park',
+            'lat_start':40.7  ,#southern boundary
+            'lat_end':40.7  ,#northern boundary
+            'lon_start':-106.15 , #western boundary
+            'lon_end':-106.15 },#eastern boundary
+        'CLPX-LSA':{
+            'Site':'CLPX-LSA',
+            'lat_start':39.7 , #southern boundary
+            'lat_end':41.0  ,#northern boundary
+            'lon_start':-106.7 , #western boundary
+            'lon_end':-105.4 },#eastern boundary
+        'CUSTOM':{
+            'Site':'Custom',
+            'lat_start':43 , #southern boundary
+            'lat_end':43  ,#northern boundary
+            'lon_start':-110 , #western boundary
+            'lon_end':-110 },
+        #eastern boundary
+        'SenatorBeck':{
+            'Site':'Senator Beck',
+             # enter latitutde and longitude in decimal degrees
+            'lat_start':37.9069  , #southern boundary
+            'lat_end':37.9069   ,#northern boundary
+            'lon_start':-107.726 ,  #western boundary
+            'lon_end':-107.726 },
+        'vatna':{
+            'lat_start':63.75  ,
+            'lat_end':64.88    ,
+            'lon_start':-20 ,
+            'lon_end':-15  ,
+            'Site':'Vatnajokull, Iceland'},
+        'hunza':{
+            'lat_start':35.9  ,
+            'lat_end':37.1   ,
+            'lon_start':74 ,
+            'lon_end':76 ,
+            'Site':'Hunza Basin'},
+        'gsl':{
+            'lat_start':59.00  ,
+            'lat_end':67.00   ,
+            'lon_start':-119.00, 
+            'lon_end':-107.00,
+            'Site':'Great Slave Lake, Canada'},
+        'bathurst_range':{
+            'lat_start':60.00  ,
+            'lat_end':67.25   ,
+            'lon_start':-119.00, 
+            'lon_end':-107.50,
+            'Site':'Bathurst Caribou Range, NWT'},
+        'bathurst_range2':{
+            'lat_start':63.00  ,
+            'lat_end':65.500   ,
+            'lon_start':-117.500, 
+            'lon_end':-112.00,
+            'Site':'Bathurst Caribou Range subset, NWT'},
+        'barrow':{
+            'lat_start':69.50  ,
+            'lat_end':71.50   , 
+            'lon_start':-158 ,
+            'lon_end':-152  ,
+            'Site':'Barrow/Utkiagvik, AK'  },
+        'fairbanks':{
+            'lat_start':63.0,  
+            'lat_end':66.7 ,   
+            'lon_start':-151.8,
+            'lon_end':-143.4  ,
+            'Site':'Fairbanks, AK'}
+    }
+            
+    
+    try:
+        return (dict[SiteLabel]['lat_start'],
+        dict[SiteLabel]['lat_end'],
+        dict[SiteLabel]['lon_start'],
+        dict[SiteLabel]['lon_end'],
+        dict[SiteLabel]['Site'])
+    except KeyError as e:
+        print("Invalid SiteLabel - valid values are")
+        for k in dict.keys():
+            print("%30s lat: %9.4f,%9.4f lon: %9.4f,%9.4f  %s"%(
+                k,dict[k]['lat_start'], dict[k]['lat_end'], dict[k]['lon_start'], dict[k]['lon_end'], dict[k]['Site']))
+    else:
+        raise
+       

@@ -98,6 +98,11 @@ Now use mamba to create a new environment that we will use for our project:
 mamba create -n cetb cetbtools matplotlib scipy jupyter basemap seaborn
 ```
 
+(Starting summer 2024, pandas is complaining about future need to install
+pyarrow for pandas 3.x and later. For now, add pyarrow to the conda env
+manually. I think once pandas is pinned to 3.x, the pyarrow will come along with
+it.)
+
 Alternatively, some extra packages that are needed for geotiff clipping operations: 
 ```
 mamba create -n cetb cetbtools matplotlib scipy jupyter basemap seaborn geopandas rasterio pycrs
@@ -193,4 +198,39 @@ To remove a conda env:
 conda remove --name <my_env> --all
 
    
-## This is my first change - Vicki 
+## Debugging the ipynb files and scripts
+
+To use the ipynb debugger for understanding what the scripts are doing:
+
+Add the following line to one of the script files in the place you want
+to set a breakpoint:
+
+``` python
+import pdb; pdb.set_trace()
+```
+
+Save the python script.
+
+Then (this is important) go back to the notebook, restart the kernel and clear
+all outputs and then recompile all cells up to the point where you are calling
+the function in the python script.  This will ensure that you are now importing
+the script with the set_trace call in it. 
+
+When you execute this cell, the python debugger will start an ipython debugger
+("ipdb") subshell in the jupyter notebook.  To do things in this cell, you can
+use the usual 
+
+l : list the code here
+l <line> : list the code centered on this <line>
+the usual jupter commands to print variables, etc
+
+Remember that this is a subshell to the jupyter notebook, so to execute commands
+here you use <ret> (NOT shift-<ret>). 
+
+To exit the ipdb subshell, use 
+
+``` python
+exit()
+```
+
+
