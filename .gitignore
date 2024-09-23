@@ -16,3 +16,10 @@ emacs-config.el
 *.elc
 .ipynb_checkpoints
 scripts/__pycache__/*.pyc
+*.png
+*.csv
+*.shp
+*.shx
+*.cpg
+*.prj
+*.dbf

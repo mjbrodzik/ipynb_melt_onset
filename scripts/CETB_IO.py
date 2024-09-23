@@ -5,7 +5,7 @@ from datetime import datetime
 import glob
 from netCDF4 import Dataset, num2date
 import numpy as np
-from osgeo import gdal, gdal_array, osr   # noqa
+from osgeo import gdal, gdalconst, gdal_array, osr
 import pandas as pd
 from pathlib import Path
 import pdb # insert at places for breakpoints: pdb.set_trace()

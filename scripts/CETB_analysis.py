@@ -87,7 +87,7 @@ def TbDAV_series_one_year(CETB_data, DAV, cal_date, cal_year, year, Tb_threshold
     x_dims_list=list(range(len(CETB_data[0,0,:])))    # creates a list of the x-dimension pixel indices, for plotting
     
     thisYr = cal_year==year
-    
+
     for i in y_dims_list:  #plot the time-series
         for j in x_dims_list:
             CETB_df = pd.DataFrame(CETB_data[thisYr, i, j], index=cal_date[thisYr])
@@ -100,7 +100,7 @@ def TbDAV_series_one_year(CETB_data, DAV, cal_date, cal_year, year, Tb_threshold
     ax1.axhline(y=Tb_threshold,c="red",linewidth=0.5,zorder=0)  # horizontal line at Tb=252K, proposed melt threshold
     ax2.axhline(y=DAV_threshold,c="red",linewidth=0.5,zorder=0)   # horizontal line at DAV=18K, proposed DAV melt threshold
     fig.autofmt_xdate()  #rotates the date labels so they aren't bunched up
-    return
+    return 
 
 # calculate early season melt events, accepts one pixel or a rectangular set of adjacent pixels
 def early_melt_events(CETB_data, DAV, DAV_threshold, Tb_threshold, cal_date, Years, rows_cols):
@@ -150,8 +150,9 @@ def earlymelt_map(CETB_data, DAV, DAV_threshold, Tb_threshold, cal_date, Years, 
     events.columns=[Years]
     events[events==0]=np.NaN
     sum_events=events.sum(axis=1)
-    sum_events=sum_events.as_matrix()
-    sum_events=sum_events.reshape(8,8)
+    sum_events=sum_events.to_numpy()
+    sum_events=sum_events.reshape(8,8)     #37V
+    #sum_events=sum_events.reshape(4,4)       #19V
 
     # plot early melt events on heatmap
     fig,ax=plt.subplots()
