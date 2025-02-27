@@ -7,6 +7,16 @@ import pandas as pd
 import pdb; # insert at places for breakpoints: pdb.set_trace()
 import warnings
 
+# Importing necessary libraries and modules for Tb Threshold Algorithm by MB 
+from scipy.signal import find_peaks, gaussian
+import os
+import matplotlib.pyplot as plt
+import csv
+import logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# End of necessary libraries for Tb Threshold Algorithm by MB 
+
+
 # getting a runtimewarning when using operators on numpy arrays with lots of NaNs, functions still perform, but using this command to suppress the warning
 warnings.filterwarnings("ignore",category =RuntimeWarning)
 
@@ -222,3 +232,233 @@ def end_high_DAV(DAV_threshold, Tb_threshold, count, window, DAV, CETB_data, Yea
 	return EHD
 
 
+
+"""
+Brightness Temperature (Tb) Threshold Optimization Algorithm for Snowmelt Detection
+Author: Mahboubeh Boueshagh
+
+Purpose: 
+- Analyzes satellite brightness temperature data to determine optimal snowmelt thresholds
+- Improves upon legacy 246K threshold using site-specific histogram analysis
+- Handles different snow classifications with specialized processing parameters
+"""
+
+def extract_relevant_data(data_SIR, year, cal_year, cal_month, snow_class, Site):
+    """
+    Extract relevant brightness temperature data based on the snow class.
+    
+    Parameters:
+    - data_SIR: DataFrame containing SIR brightness temperature data.
+    - year: The year for which the data is being analyzed.
+    - cal_year: Array or list of years corresponding to each data point in data_SIR.
+    - cal_month: Array or list of months corresponding to each data point in data_SIR.
+    - snow_class: The classification of snow for the site.
+    - Site: The name of the site being analyzed.
+
+    Returns:
+    - data: A numpy array containing the filtered and combined brightness temperature data for the specified year. 
+    """
+
+    # If the snow class belongs to one of the specified classes ['Boreal Forest', 'Montane Forest', 'Tundra', 'Prairie']: 
+    # Through empirical trials, we just use Jan to Sep of the year. By excluding October to December, the data analysis concentrates on the months when snowmelt is actively occurring (late winter to early summer). This helps to reduce noise in the data from the snow accumulation phase, which is predominant in these excluded months. The removal sharpens the focus on the transition from peak snowpack conditions to melting phases, which generally start in spring. This can help in more accurately identifying the onset of snowmelt. 
+    # Focusing on the critical snowmelt months allows for more specialized handling of data variations due to environmental factors such as temperature fluctuations and solar radiation, which are more relevant to the melting processes than to the freezing or snow accumulation processes.
+    # January to September covers winter, spring, and part of summer. This period includes the tail end of the Arctic winter, the entire spring thaw, and the majority of the summer melt season. Therefore, the histogram will mainly reflect the brightness temperatures associated with these specific seasonal conditions.
+    # The histogram is likely to show a range of brightness temperatures that includes very cold values at the beginning of the period (reflecting frozen conditions) and warmer values towards the end as surface melting increases. 
+    # By excluding the late autumn and early winter months (October to December), the histogram will not capture the re-freezing period and the onset of the snow season, which typically show lower Tb values associated with fresh snow and freezing conditions.
+    # Without data from October to December, the histogram misses the period when temperatures drop, and surfaces begin to refreeze, which would normally provide a counterbalance to the melt season data, showing lower Tb values.
+    
+    if snow_class in ['Boreal Forest', 'Montane Forest', 'Tundra', 'Prairie']:
+        print(f"  - Analyzing {Site} based on January to September of the year")
+        # Selecting January to September data from the current year
+        mask_curr_year = (cal_year == year) & (cal_month <= 9)
+        data_curr_year = data_SIR['TB'][mask_curr_year]
+        data = data_curr_year
+
+    # For other snow classes, use full calendar year
+    elif snow_class in ['Maritime', 'Ephemeral', 'Ice', 'Ocean']:
+        print(f"  - Analyzing {Site} based on Calendar Year")
+        data = data_SIR['TB'][(data_SIR['cal_year'] == year)]
+    else:
+        return None
+        
+    # Remove physically impossible measurements
+    data = data[data > 0]
+    return data
+
+def compute_smoothed_histogram(data, snow_class, Site):
+    """
+    Compute and return a smoothed histogram for the brightness temperature data.
+    - opt_kernel_width: Optimal kernel width for smoothing, calculated based on Silverman's rule. 
+                         This rule is a commonly used method to estimate the bandwidth of a kernel density estimate.
+                         The 0.4 factor is an empirically determined scaling factor specific to this project tested in a range of SNOTEL sites in AK.
+                         A minimum value of 2 is set based on trial and error to ensure adequate smoothing.
+    
+    Parameters:
+    - data: A numpy array containing brightness temperature data.
+    - snow_class: The classification of snow for the site.
+    - Site: The name of the site being analyzed.
+
+    Returns:
+    - hist: The computed histogram of the data.
+    - bin_edges: The edges of the bins used in the histogram.
+    - hist_smooth: The smoothed histogram obtained by convolution with a Gaussian kernel.
+    """
+    
+    # Define histogram bins based on data range
+    min_bin = int(np.floor(np.min(data)))
+    max_bin = int(np.ceil(np.max(data)))
+    bins = range(min_bin, max_bin)
+    
+    # Calculate the histogram
+    hist, bin_edges = np.histogram(data, bins)
+
+    # Calculate optimal kernel width for smoothing, based on Silverman's rule
+    std_data = np.std(data)
+    n = len(data)
+    opt_kernel_width = 0.4 * 1.06 * std_data * (n ** (-1 / 5))
+    if opt_kernel_width <= 1:
+        print(f"Warning: Kernel width is too small for site {Site}. Using a minimum kernel width of 1.")
+        opt_kernel_width = 2  # Use a minimum kernel width
+    
+    # Compute the smoothed histogram using convolution with a Gaussian kernel
+    kernel = gaussian(int(opt_kernel_width), opt_kernel_width)
+    hist_smooth = np.convolve(hist, kernel, mode='same')
+
+    return hist, bin_edges, hist_smooth
+
+def analyze_histogram(hist, bin_edges, hist_smooth, Site, year, sensor_SIR, channel_SIR, snow_class, ThresholdDir):
+    """
+    Analyze the smoothed histogram to identify peaks, valleys, and determine temperature thresholds.
+    - threshold = np.percentile(hist, 70): This threshold is set to the 70th percentile of the histogram values
+                                            to focus on the higher end of the temperature distribution, as determined 
+                                            through experimentation across various SNOTEL sites in Alaska.
+    - distance=16&14: These values are used in peak detection. The 'distance' parameter specifies the required 
+                      minimum horizontal distance (in number of bins) between neighboring peaks. The values 16 and 14 
+                      have been determined through trial and error to effectively distinguish peaks in different 
+                      snow classes for Alaskan sites.
+    """
+    
+    # Initial peak detection using 70th percentile threshold
+    threshold = np.percentile(hist, 70)
+
+    # Apply snow-class specific peak detection parameters
+    if snow_class in ['Boreal Forest', 'Montane Forest', 'Tundra', 'Prairie']:
+        peaks_idx, _ = find_peaks(hist_smooth, distance=16, height=threshold)
+    elif snow_class in ['Maritime', 'Ephemeral', 'Ice', 'Ocean']:
+        peaks_idx, _ = find_peaks(hist_smooth, distance=14, height=threshold)
+
+    num_peaks = len(peaks_idx)
+
+    # Process bimodal case - ideal for threshold detection
+    if num_peaks == 2:
+        print(f"2 peaks (bimodal) found for {Site} in year {year[0]}.")
+        print(f"X-axis values of peaks: {bin_edges[peaks_idx]}")
+        
+        # Find optimal threshold in valley between peaks
+        peak1, peak2 = sorted(peaks_idx[np.argsort(hist_smooth[peaks_idx])[-2:]])
+        valley = hist_smooth[peak1:peak2]
+        valley_min_idx = np.argmin(valley)
+        absolute_min_idx = peak1 + valley_min_idx
+        min_temperature = bin_edges[absolute_min_idx]  # Optimized Tb threshold
+
+        plot_histogram(hist, bin_edges, hist_smooth, min_temperature, Site, year, 
+                      snow_class, sensor_SIR, channel_SIR, ThresholdDir, peaks_idx=peaks_idx)
+        return {'Site': Site, 'snow_class': snow_class, 'threshold': min_temperature}
+
+    # Handle single peak case - requires manual review
+    elif num_peaks < 2:
+        print(f"Less than two peaks (unimodal) found for {Site} in year {year[0]}.")
+        min_temperature = None
+        plot_histogram(hist, bin_edges, hist_smooth, min_temperature, Site, year,
+                      snow_class, sensor_SIR, channel_SIR, ThresholdDir, peaks_idx=peaks_idx)
+        return {'threshold': [Site, "N/A"]}
+
+    # Handle multiple peaks case - attempt refined detection
+    else:
+        print(f"More than 2 peaks found for {Site} in year {year[0]}.")
+
+        # Use mean-based threshold for secondary peak detection
+        meanHist = np.mean(hist)
+        StdHist = np.std(hist)
+        threshold2 = meanHist + 0*StdHist  # Mean value works efficiently for vertical constraint
+        peaks_idx, _ = find_peaks(hist_smooth, distance=14, height=threshold2)
+        print(f"X-axis values of peaks: {bin_edges[peaks_idx]}")
+        
+        if len(peaks_idx) < 3:
+            print(f"Complex histogram: algorithm could not find the exact 3 peaks for {Site} in year {year}.")
+            return {'threshold': [Site, "N/A"]}
+
+        else:
+            # Analyze three most prominent peaks
+            peak1, peak2, peak3 = peaks_idx[np.argsort(hist_smooth[peaks_idx])[-3:]]
+            
+            # Find optimal threshold between peaks
+            valley1 = hist_smooth[peak1:peak2]
+            valley2 = hist_smooth[peak2:peak3]
+            combined_valley = np.concatenate((valley1, valley2))
+            
+            valley_min_idx = np.argmin(combined_valley)
+            
+            # Determine valley location and adjust index
+            if valley_min_idx < len(valley1):
+                absolute_min_idx = peak1 + valley_min_idx
+            else:
+                absolute_min_idx = peak2 + (valley_min_idx - len(valley1))
+            min_temperature = bin_edges[absolute_min_idx]  # Optimized Tb threshold
+            
+            plot_histogram(hist, bin_edges, hist_smooth, min_temperature, Site, year,
+                         snow_class, sensor_SIR, channel_SIR, ThresholdDir, peaks_idx=peaks_idx)
+            return {'Site': Site, 'snow_class': snow_class, 'threshold': min_temperature}
+
+def plot_histogram(hist, bin_edges, hist_smooth, min_temperature, Site, year, sensor_SIR, channel_SIR, snow_class, ThresholdDir, peaks_idx=None):
+    """
+    Plot the histogram and smoothed curve, highlight peaks and threshold, and save the plot.
+    
+    Parameters:
+    - hist: The histogram of brightness temperature data.
+    - bin_edges: The edges of the bins used in the histogram.
+    - hist_smooth: The smoothed histogram.
+    - min_temperature: The minimum temperature threshold determined by the analysis.
+    - Site: The name of the site.
+    - year: The year for which the data is being analyzed.
+    - sensor_SIR: Sensor information for the data.
+    - channel_SIR: Channel information for the data.
+    - snow_class: The classification of snow for the site.
+    - ThresholdDir: Directory where the plot will be saved.
+    - peaks_idx: Indices of detected peaks in the smoothed histogram (optional).
+
+    Saves:
+    - A plot of the histogram and smoothed curve as a PNG file.
+    """
+
+    save_filename = f"{Site}_{year[0]}_{sensor_SIR}.png"
+    save_path = os.path.join(ThresholdDir, save_filename)
+
+    # Create and configure plot
+    fig, ax = plt.subplots()
+    ax.set_title('All data SIR Histogram (' + str(year[0]) + ') ' + Site + ' (' + snow_class + ')' + ' for ' + sensor_SIR + ' ' + channel_SIR)
+    ax.set_xlabel('Brightness Temp (K)')
+    ax.hist(bin_edges[:-1], bins=bin_edges, weights=hist, alpha=0.5, label='Histogram')
+    
+    # Add appropriate visualization based on peak detection results
+    if len(peaks_idx) >= 2:
+        # Show fitted curve and thresholds for multi-peak cases
+        ax.plot(bin_edges[:-1], hist_smooth, label='Fitted curve')
+        ax.axvline(x=min_temperature, color='black', linestyle='--', 
+                  label=f'New optimized Tb threshold at {min_temperature}K')
+        Tb_threshold = 246
+        ax.axvline(x=Tb_threshold, color='red', linestyle='--', 
+                  label=f'Legacy Tb threshold at {Tb_threshold}K')
+    else:
+        # Add warning text for single-peak cases
+        min_temperature = None
+        ax.text(0.5, 0.5, 'Histogram has only 1 peak, check the histogram visually & manually for thresholds',
+                horizontalalignment='center', verticalalignment='center',
+                transform=ax.transAxes, fontsize=12)
+    
+    # Adjust plot appearance
+    max_hist = np.max(hist)
+    ax.set_ylim([0, max_hist + 100])  # Add space above highest bar
+    plt.legend(loc='upper left')
+    plt.savefig(save_path)
+    plt.show()

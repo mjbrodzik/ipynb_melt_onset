@@ -1067,8 +1067,68 @@ def get_site_boundaries(SiteLabel):
             'lon_start':-153.452493001114,
             'lat_end':70.58333675326588,
             'lon_end':-153.452493001114},
-        
-        
+        'SNOTEL1':{
+            'Site':'Monument Creek, AK', #, For SWE-SSD project_Mahboubeh',
+            'lat_start':65.07833,
+            'lon_start':-145.87067,
+            'lat_end':65.07833,
+            'lon_end':-145.87067},
+        'SNOTEL2':{
+            'Site':'American Creek, AK', #, near Fairbanks, AK for Melt Threshold Optimization project_Mahboubeh',
+            'lat_start':64.79,
+            'lon_start':-141.23,
+            'lat_end':64.79,
+            'lon_end':-141.23},
+        'SNOTEL3':{
+            'Site':'Jack Wade Jct, AK', #, near Fairbanks, AK for Melt Threshold Optimization project_Mahboubeh',
+            'lat_start':64.15,
+            'lon_start':-141.33,
+            'lat_end':64.15,
+            'lon_end':-141.33},
+        'SNOTEL4':{
+            'Site':'Little Chena Ridge, AK', #, near Fairbanks, AK for Melt Threshold Optimization project_Mahboubeh',
+            'lat_start':65.12,
+            'lon_start':-146.73,
+            'lat_end':65.12,
+            'lon_end':-146.73},
+        'SNOTEL5':{
+            'Site':'Mt. Ryan, AK', #, near Fairbanks, AK for Melt Threshold Optimization project_Mahboubeh',
+            'lat_start':65.25,
+            'lon_start':-146.15,
+            'lat_end':65.25,
+            'lon_end':-146.15},
+        'SNOTEL6':{
+            'Site':'Munson Ridge, AK', #, near Fairbanks, AK for Melt Threshold Optimization project_Mahboubeh',
+            'lat_start':64.85,
+            'lon_start':-146.21,
+            'lat_end':64.85,
+            'lon_end':-146.21},
+        'SNOTEL7':{
+            'Site':'Teuchet Creek, AK', #, near Fairbanks, AK for Melt Threshold Optimization project_Mahboubeh',
+            'lat_start':64.95,
+            'lon_start':-145.52,
+            'lat_end':64.95,
+            'lon_end':-145.52},
+        'SNOTEL8':{
+            'Site':'Upper Chena, AK', #, near Fairbanks, AK for Melt Threshold Optimization project_Mahboubeh',
+            'lat_start':65.1,
+            'lon_start':-144.93,
+            'lat_end':65.1,
+            'lon_end':-144.93},
+        'SNOTEL9':{
+            'Site':'Granite Crk, AK', #, near Fairbanks, AK for Melt Threshold Optimization project_Mahboubeh',
+            'lat_start':63.94,
+            'lon_start':-145.4,
+            'lat_end':63.94,
+            'lon_end':-145.4},
+        'AalaskaRegion':{
+            'Site':'Box of Interest, AK', #, near Fairbanks, AK for Melt Threshold Optimization project_Mahboubeh',
+            'lat_start':63,
+            'lon_start':-143,
+            'lat_end':65,
+            'lon_end':-142},
+
+
      #Western_CA Sites
         'NWT':{
             'Site':'NWT C57 04242006 Spring Migration',
@@ -1156,6 +1216,20 @@ def get_site_boundaries(SiteLabel):
             'lat_end':43  ,#northern boundary
             'lon_start':-110 , #western boundary
             'lon_end':-110 },
+        'SNOTEL10':{
+            'Site':'Mud Flat, ID', #, For SWE-SSD project_Mahboubeh',
+            'lat_start':42.60040,
+            'lon_start':-116.55925,
+            'lat_end':42.60040,
+            'lon_end':-116.55925},
+        'SNOTEL11':{
+            'Site':'Jones Pass, CO', #, For SWE-SSD project_Mahboubeh',
+            'lat_start':39.76450,
+            'lon_start':-105.90655,
+            'lat_end':39.76450,
+            'lon_end':-105.90655},
+        
+
         #eastern boundary
         'SenatorBeck':{
             'Site':'Senator Beck',

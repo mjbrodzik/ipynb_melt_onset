@@ -424,6 +424,41 @@ def MOD_array(datadir, prefix, CETB, DAV, rows_cols, Years, window, count,
     
     return df, meltflag_df, EHD_df, EHDflag_df
 
+
+
+#### Define this to extract lat and long for rSIR pixels in a bounding box of interest.
+def BOX_array(CETB, rows_cols):
+    """
+    Extracts and returns a DataFrame containing 'Site', 'lat_start', 'lon_start', 'x', and 'y' 
+    based on the provided CETB data and row/column ranges.
+    
+    Parameters:
+        CETB (dict): Dictionary containing geolocation and brightness temperature data.
+        rows_cols (tuple): Tuple specifying the row and column range (row_start, row_end, col_start, col_end).
+    
+    Returns:
+        pd.DataFrame: DataFrame with extracted geolocation information.
+    """
+    
+    # Generate site labels
+    site_names = ["%s,%s" % (str(y), str(x)) 
+                  for y in np.arange(rows_cols[0], rows_cols[1])
+                  for x in np.arange(rows_cols[2], rows_cols[3])]
+    
+    num_rows = len(site_names)
+    xx, yy = np.meshgrid(CETB['x'], CETB['y'])
+
+    # Create dataframe with required columns
+    extracted_df = pd.DataFrame()
+    extracted_df['Site'] = site_names
+    extracted_df['lat_start'] = np.reshape(CETB['latitude'], num_rows)
+    extracted_df['lon_start'] = np.reshape(CETB['longitude'], num_rows)
+    extracted_df['x'] = np.reshape(xx, num_rows)
+    extracted_df['y'] = np.reshape(yy, num_rows)
+
+    return extracted_df
+
+
 # plot map of average MOD for year of interest
 #def MOD_array_year(datadir, prefix, CETB_data, DAV,
 #                   rows_cols, cal_date, year, window, count,
